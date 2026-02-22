@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J.A.R.V.I.S. Execution Platform — Login</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Source+Sans+3:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-deep:      #060B18;
+  --bg-primary:   #0B1120;
+  --bg-surface:   #111827;
+  --bg-elevated:  #1F2937;
+  --bg-hover:     #374151;
+  --border:       #1E293B;
+  --border-light: #334155;
+  --text-primary:   #F1F5F9;
+  --text-secondary: #94A3B8;
+  --text-muted:     #64748B;
+  --accent-blue:    #3B82F6;
+  --accent-blue-dim:#1E3A5F;
+  --accent-cyan:    #22D3EE;
+  --accent-emerald: #10B981;
+  --accent-amber:   #F59E0B;
+  --accent-red:     #EF4444;
+  --accent-purple:  #8B5CF6;
+  --jarvis-glow:    #38BDF8;
+  --jarvis-glow-dim:rgba(56,189,248,0.08);
+  --jarvis-glow-ring:rgba(56,189,248,0.25);
+  --gradient-blue:  linear-gradient(135deg,#3B82F6,#22D3EE);
+  --font-display: 'Outfit', sans-serif;
+  --font-body:    'Source Sans 3', sans-serif;
+  --font-mono:    'JetBrains Mono', monospace;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--font-body);
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ─── BACKGROUND GRID ──────── */
+.bg-grid {
+  position: fixed; inset: 0; z-index: 0;
+  background-image:
+    linear-gradient(rgba(56,189,248,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56,189,248,0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 80% 100% at 50% 50%, black 40%, transparent 100%);
+}
+
+/* ─── ORBITAL RINGS ──────────── */
+.orbital-container {
+  position: fixed; top: 50%; left: 50%;
+  transform: translate(-50%, -50%); z-index: 0;
+  pointer-events: none;
+}
+.orbital-ring {
+  position: absolute; border-radius: 50%;
+  border: 1px solid rgba(56,189,248,0.06);
+  animation: orbitalSpin linear infinite;
+  transform-origin: center center;
+}
+.orbital-ring::before {
+  content: ''; position: absolute;
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--jarvis-glow); opacity: 0.6;
+  box-shadow: 0 0 6px var(--jarvis-glow);
+}
+.ring-1 { width: 280px; height: 280px; top: -140px; left: -140px; animation-duration: 12s; }
+.ring-1::before { top: -2px; left: 50%; transform: translateX(-50%); }
+.ring-2 { width: 480px; height: 480px; top: -240px; left: -240px; animation-duration: 20s; animation-direction: reverse; border-color: rgba(56,189,248,0.04); }
+.ring-2::before { bottom: -2px; left: 50%; transform: translateX(-50%); background: var(--accent-purple); box-shadow: 0 0 6px var(--accent-purple); }
+.ring-3 { width: 700px; height: 700px; top: -350px; left: -350px; animation-duration: 34s; border-color: rgba(56,189,248,0.02); }
+.ring-3::before { top: 50%; right: -2px; transform: translateY(-50%); background: var(--accent-emerald); box-shadow: 0 0 6px var(--accent-emerald); }
+@keyframes orbitalSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* ─── LOGIN CONTAINER ──────── */
+.login-wrap {
+  position: relative; z-index: 10;
+  display: flex; flex-direction: column;
+  align-items: center; gap: 48px;
+  width: 100%; max-width: 960px;
+  padding: 40px 24px;
+  animation: loginEntrance 0.8s ease forwards;
+}
+@keyframes loginEntrance {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── HERO LOGO ─────────────── */
+.hero-logo { text-align: center; }
+.hero-arc {
+  width: 80px; height: 80px; border-radius: 50%;
+  background: radial-gradient(circle at center, rgba(56,189,248,0.15) 0%, transparent 70%);
+  border: 1.5px solid var(--jarvis-glow-ring);
+  box-shadow: 0 0 32px rgba(56,189,248,0.15), inset 0 0 20px rgba(56,189,248,0.08);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 20px;
+  animation: arcPulse 4s ease-in-out infinite;
+  position: relative;
+}
+.hero-arc::before {
+  content: ''; width: 28px; height: 28px; border-radius: 50%;
+  background: radial-gradient(circle, var(--jarvis-glow) 0%, rgba(56,189,248,0.4) 60%, transparent 100%);
+  box-shadow: 0 0 16px var(--jarvis-glow), 0 0 32px rgba(56,189,248,0.3);
+}
+.hero-arc::after {
+  content: ''; position: absolute; inset: 8px; border-radius: 50%;
+  border: 1px solid rgba(56,189,248,0.15);
+}
+@keyframes arcPulse {
+  0%, 100% { box-shadow: 0 0 32px rgba(56,189,248,0.15), inset 0 0 20px rgba(56,189,248,0.08); }
+  50%       { box-shadow: 0 0 48px rgba(56,189,248,0.25), inset 0 0 28px rgba(56,189,248,0.15); }
+}
+
+.hero-title {
+  font-family: var(--font-display); font-weight: 800;
+  font-size: 42px; letter-spacing: 4px;
+  background: linear-gradient(135deg, #F1F5F9 0%, var(--jarvis-glow) 50%, var(--accent-cyan) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 4px;
+}
+.hero-subtitle {
+  font-family: var(--font-display); font-weight: 300;
+  font-size: 13px; letter-spacing: 3px; color: var(--text-secondary);
+  text-transform: uppercase;
+}
+.hero-tagline {
+  margin-top: 12px; font-family: var(--font-mono);
+  font-size: 11px; color: var(--jarvis-glow); opacity: 0.7;
+  letter-spacing: 0.5px;
+}
+.hero-project {
+  margin-top: 8px;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 4px 16px; border-radius: 20px;
+  border: 1px solid rgba(56,189,248,0.2);
+  background: rgba(56,189,248,0.04);
+  font-size: 12px; color: var(--jarvis-glow); font-family: var(--font-display);
+}
+.cloud-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 2px 10px; border-radius: 12px;
+  font-size: 11px; font-weight: 600; font-family: var(--font-mono);
+}
+.cloud-from { background: rgba(0,130,246,0.15); color: #60A5FA; border: 1px solid rgba(59,130,246,0.2); }
+.cloud-to   { background: rgba(16,185,129,0.12); color: var(--accent-emerald); border: 1px solid rgba(16,185,129,0.2); }
+.cloud-arrow { color: var(--text-muted); font-size: 14px; }
+
+/* ─── PERSONA GRID ───────────── */
+.persona-section { width: 100%; }
+.persona-label {
+  text-align: center; font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 1.5px;
+  color: var(--text-muted); font-family: var(--font-display);
+  margin-bottom: 24px;
+}
+
+.persona-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.persona-card {
+  padding: 28px 20px; border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  cursor: pointer; transition: all 0.3s;
+  text-align: center; position: relative; overflow: hidden;
+}
+.persona-card::before {
+  content: ''; position: absolute; inset: 0;
+  opacity: 0; transition: opacity 0.3s;
+}
+.persona-card:hover { transform: translateY(-4px); }
+.persona-card:hover::before { opacity: 1; }
+
+/* Assessment */
+.persona-card.assessment { border-color: rgba(34,211,238,0.2); }
+.persona-card.assessment::before { background: radial-gradient(ellipse at 50% 0%, rgba(34,211,238,0.06) 0%, transparent 60%); }
+.persona-card.assessment:hover { border-color: rgba(34,211,238,0.5); box-shadow: 0 8px 32px rgba(34,211,238,0.1), 0 0 0 1px rgba(34,211,238,0.15); }
+
+/* Migration */
+.persona-card.migration { border-color: rgba(139,92,246,0.2); }
+.persona-card.migration::before { background: radial-gradient(ellipse at 50% 0%, rgba(139,92,246,0.06) 0%, transparent 60%); }
+.persona-card.migration:hover { border-color: rgba(139,92,246,0.5); box-shadow: 0 8px 32px rgba(139,92,246,0.1), 0 0 0 1px rgba(139,92,246,0.15); }
+
+/* Testing */
+.persona-card.testing { border-color: rgba(16,185,129,0.2); }
+.persona-card.testing::before { background: radial-gradient(ellipse at 50% 0%, rgba(16,185,129,0.06) 0%, transparent 60%); }
+.persona-card.testing:hover { border-color: rgba(16,185,129,0.5); box-shadow: 0 8px 32px rgba(16,185,129,0.1), 0 0 0 1px rgba(16,185,129,0.15); }
+
+/* PMO */
+.persona-card.pmo { border-color: rgba(245,158,11,0.2); }
+.persona-card.pmo::before { background: radial-gradient(ellipse at 50% 0%, rgba(245,158,11,0.06) 0%, transparent 60%); }
+.persona-card.pmo:hover { border-color: rgba(245,158,11,0.5); box-shadow: 0 8px 32px rgba(245,158,11,0.1), 0 0 0 1px rgba(245,158,11,0.15); }
+
+.persona-icon-wrap {
+  width: 64px; height: 64px; border-radius: 18px;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 18px; font-size: 26px; position: relative; z-index: 1;
+  transition: transform 0.3s;
+}
+.persona-card:hover .persona-icon-wrap { transform: scale(1.08); }
+
+.assessment .persona-icon-wrap { background: rgba(34,211,238,0.12); border: 1px solid rgba(34,211,238,0.25); }
+.migration  .persona-icon-wrap { background: rgba(139,92,246,0.12); border: 1px solid rgba(139,92,246,0.25); }
+.testing    .persona-icon-wrap { background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.25); }
+.pmo        .persona-icon-wrap { background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.25); }
+
+.persona-card-title {
+  font-family: var(--font-display); font-weight: 700; font-size: 16px;
+  margin-bottom: 6px; letter-spacing: -0.3px; position: relative; z-index: 1;
+}
+.assessment .persona-card-title { color: var(--accent-cyan); }
+.migration  .persona-card-title { color: var(--accent-purple); }
+.testing    .persona-card-title { color: var(--accent-emerald); }
+.pmo        .persona-card-title { color: var(--accent-amber); }
+
+.persona-card-desc {
+  font-size: 12px; color: var(--text-muted); line-height: 1.5;
+  margin-bottom: 16px; position: relative; z-index: 1;
+}
+
+.persona-caps { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-bottom: 22px; position: relative; z-index: 1; }
+.persona-cap {
+  padding: 2px 8px; border-radius: 4px;
+  font-size: 10px; font-weight: 500; font-family: var(--font-mono);
+  background: var(--bg-elevated); color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.persona-enter-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 10px 0; border-radius: var(--radius-sm);
+  font-family: var(--font-display); font-weight: 600; font-size: 13px;
+  cursor: pointer; border: 1px solid; transition: all 0.2s;
+  position: relative; z-index: 1;
+}
+.assessment .persona-enter-btn { background: rgba(34,211,238,0.1); border-color: rgba(34,211,238,0.3); color: var(--accent-cyan); }
+.assessment .persona-enter-btn:hover { background: rgba(34,211,238,0.2); }
+.migration  .persona-enter-btn { background: rgba(139,92,246,0.1); border-color: rgba(139,92,246,0.3); color: var(--accent-purple); }
+.migration  .persona-enter-btn:hover { background: rgba(139,92,246,0.2); }
+.testing    .persona-enter-btn { background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3); color: var(--accent-emerald); }
+.testing    .persona-enter-btn:hover { background: rgba(16,185,129,0.2); }
+.pmo        .persona-enter-btn { background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.3); color: var(--accent-amber); }
+.pmo        .persona-enter-btn:hover { background: rgba(245,158,11,0.2); }
+
+/* ─── STATUS BAR ─────────────── */
+.login-status {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 24px;
+  background: var(--jarvis-glow-dim);
+  border-top: 1px solid rgba(56,189,248,0.1);
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--text-muted); letter-spacing: 0.3px;
+  z-index: 20;
+}
+.status-items { display: flex; align-items: center; gap: 20px; }
+.status-item  { display: flex; align-items: center; gap: 5px; }
+.status-dot   { width: 5px; height: 5px; border-radius: 50%; background: var(--accent-emerald); box-shadow: 0 0 4px var(--accent-emerald); }
+.status-dot.warn { background: var(--accent-amber); box-shadow: 0 0 4px var(--accent-amber); }
+
+/* ─── QUICK STATS ─────────────── */
+.quick-stats {
+  display: flex; gap: 32px; margin-top: -16px;
+}
+.qs-item {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 0 16px; border-right: 1px solid var(--border);
+}
+.qs-item:last-child { border-right: none; }
+.qs-val   { font-family: var(--font-mono); font-weight: 700; font-size: 24px; }
+.qs-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; font-family: var(--font-display); }
+
+/* Loading overlay */
+.loading-overlay {
+  position: fixed; inset: 0;
+  background: var(--bg-deep);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 1000; opacity: 0; pointer-events: none;
+  transition: opacity 0.3s;
+}
+.loading-overlay.show { opacity: 1; pointer-events: all; }
+.loading-arc {
+  width: 60px; height: 60px; border-radius: 50%;
+  border: 2px solid var(--border);
+  border-top-color: var(--jarvis-glow);
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 16px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text {
+  font-family: var(--font-mono); font-size: 12px;
+  color: var(--jarvis-glow); letter-spacing: 1px;
+}
+.loading-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; font-family: var(--font-display); }
+
+::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+
+<div class="orbital-container">
+  <div class="orbital-ring ring-1"></div>
+  <div class="orbital-ring ring-2"></div>
+  <div class="orbital-ring ring-3"></div>
+</div>
+
+<div class="login-wrap">
+
+  <!-- HERO LOGO -->
+  <div class="hero-logo animate-in">
+    <div class="hero-arc"></div>
+    <div class="hero-title">J.A.R.V.I.S.</div>
+    <div class="hero-subtitle">Execution Platform</div>
+    <div class="hero-tagline">Just A Rather Very Intelligent System · v1.0</div>
+    <div style="margin-top:14px;display:flex;align-items:center;justify-content:center;gap:10px">
+      <div class="cloud-pill cloud-from">☁ Microsoft Azure</div>
+      <div class="cloud-arrow">→</div>
+      <div class="cloud-pill cloud-to">☁ Google Cloud</div>
+    </div>
+    <div class="hero-project" style="margin-top:14px">
+      🚀 Journey to Cloud Migration · Agentic AI Orchestration
+    </div>
+  </div>
+
+  <!-- QUICK STATS -->
+  <div class="quick-stats animate-in" id="qs-section" style="animation-delay:0.1s;opacity:0">
+    <div class="qs-item"><div class="qs-val text-cyan" id="qs-apps">—</div><div class="qs-label">Apps in Scope</div></div>
+    <div class="qs-item"><div class="qs-val text-emerald" id="qs-migrated">—</div><div class="qs-label">Migrated</div></div>
+    <div class="qs-item"><div class="qs-val text-amber" id="qs-pending">—</div><div class="qs-label">Pending</div></div>
+    <div class="qs-item"><div class="qs-val text-purple" id="qs-agents">4</div><div class="qs-label">AI Agents Active</div></div>
+    <div class="qs-item"><div class="qs-val text-blue" id="qs-waves">—</div><div class="qs-label">Wave Progress</div></div>
+  </div>
+
+  <!-- PERSONA SELECTION -->
+  <div class="persona-section animate-in" style="animation-delay:0.2s;opacity:0">
+    <div class="persona-label">Select Your Engine Access</div>
+    <div class="persona-grid">
+
+      <!-- ASSESSMENT ENGINE -->
+      <div class="persona-card assessment" onclick="selectPersona('assessment')">
+        <div class="persona-icon-wrap">🔍</div>
+        <div class="persona-card-title">Assessment Engine</div>
+        <div class="persona-card-desc">Discover, reverse-engineer, and analyze application repositories. Classify into migration patterns and plan waves.</div>
+        <div class="persona-caps">
+          <span class="persona-cap">GitHub Analysis</span>
+          <span class="persona-cap">AI Agents</span>
+          <span class="persona-cap">Dep Graph</span>
+          <span class="persona-cap">Pattern Classify</span>
+          <span class="persona-cap">Bundle Planning</span>
+        </div>
+        <div class="persona-enter-btn">Enter Assessment → </div>
+      </div>
+
+      <!-- MIGRATION ENGINE -->
+      <div class="persona-card migration" onclick="selectPersona('migration')">
+        <div class="persona-icon-wrap">🚀</div>
+        <div class="persona-card-title">Migration Engine</div>
+        <div class="persona-card-desc">Execute wave-based migrations. Generate Terraform, CI/CD pipelines, and orchestrate GCP deployments with human-in-the-loop approval.</div>
+        <div class="persona-caps">
+          <span class="persona-cap">Wave Execution</span>
+          <span class="persona-cap">Terraform Gen</span>
+          <span class="persona-cap">Pipeline Mod</span>
+          <span class="persona-cap">GCP Deploy</span>
+          <span class="persona-cap">Approval Flow</span>
+        </div>
+        <div class="persona-enter-btn">Enter Migration → </div>
+      </div>
+
+      <!-- TESTING ENGINE -->
+      <div class="persona-card testing" onclick="selectPersona('testing')">
+        <div class="persona-icon-wrap">🧪</div>
+        <div class="persona-card-title">Testing Engine</div>
+        <div class="persona-card-desc">Run AI-driven smoke tests, SIT, performance tests, and UAT with synthetic data. Auto-create GitHub issues on failures.</div>
+        <div class="persona-caps">
+          <span class="persona-cap">Smoke Test</span>
+          <span class="persona-cap">SIT</span>
+          <span class="persona-cap">Perf Test</span>
+          <span class="persona-cap">UAT</span>
+          <span class="persona-cap">Issue Agent</span>
+        </div>
+        <div class="persona-enter-btn">Enter Testing → </div>
+      </div>
+
+      <!-- PMO ENGINE -->
+      <div class="persona-card pmo" onclick="selectPersona('pmo')">
+        <div class="persona-icon-wrap">📊</div>
+        <div class="persona-card-title">PMO Reporting Engine</div>
+        <div class="persona-card-desc">Executive dashboards, risk matrix, budget tracking, planned vs actual analysis, and consolidated migration reporting.</div>
+        <div class="persona-caps">
+          <span class="persona-cap">Exec Dashboard</span>
+          <span class="persona-cap">Risk Matrix</span>
+          <span class="persona-cap">Budget</span>
+          <span class="persona-cap">Gantt</span>
+          <span class="persona-cap">Reports</span>
+        </div>
+        <div class="persona-enter-btn">Enter PMO → </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- STATUS BAR -->
+<div class="login-status">
+  <div class="status-items">
+    <div class="status-item"><div class="status-dot"></div><span>SYSTEMS ONLINE</span></div>
+    <div class="status-item"><div class="status-dot"></div><span>MCP SERVER: <span style="color:var(--accent-emerald)">READY</span></span></div>
+    <div class="status-item"><div class="status-dot"></div><span>ANTHROPIC CLAUDE: <span id="claude-status" style="color:var(--accent-amber)">CHECKING...</span></span></div>
+    <div class="status-item"><div class="status-dot warn" id="gh-dot"></div><span>GITHUB: <span id="gh-status" style="color:var(--accent-amber)">NOT CONNECTED</span></span></div>
+  </div>
+  <div style="font-style:italic;color:var(--jarvis-glow);opacity:0.6;font-size:9px;letter-spacing:0.5px">just a rather very intelligent system · at your service</div>
+</div>
+
+<!-- LOADING OVERLAY -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="loading-arc"></div>
+  <div class="loading-text" id="loading-text">INITIALIZING ENGINE...</div>
+  <div class="loading-sub" id="loading-sub">Authenticating persona</div>
+</div>
+
+<script>
+// ── PERSONA SELECTION & NAVIGATION ──────────────────────────────────
+const PAGES = {
+  assessment: 'assessment/index.html',
+  migration:  'migration/index.html',
+  testing:    'testing/index.html',
+  pmo:        'pmo/index.html',
+};
+
+const LOAD_MSGS = {
+  assessment: ['INITIALIZING ASSESSMENT ENGINE...', 'Loading GitHub connector...'],
+  migration:  ['INITIALIZING MIGRATION ENGINE...', 'Loading wave planner...'],
+  testing:    ['INITIALIZING TESTING ENGINE...', 'Loading test suites...'],
+  pmo:        ['INITIALIZING PMO ENGINE...', 'Loading executive dashboards...'],
+};
+
+function selectPersona(id) {
+  // Store selection
+  sessionStorage.setItem('jarvis_persona', JSON.stringify({
+    id, label: getLabelFor(id),
+    initials: { assessment:'AE', migration:'ME', testing:'TE', pmo:'PMO' }[id],
+    gradient: getGradientFor(id),
+    color: getColorFor(id),
+    loginTime: new Date().toISOString()
+  }));
+
+  // Show loading
+  const overlay = document.getElementById('loading-overlay');
+  const msgs    = LOAD_MSGS[id] || ['LOADING...', 'Please wait'];
+  document.getElementById('loading-text').textContent = msgs[0];
+  document.getElementById('loading-sub').textContent  = msgs[1];
+  overlay.classList.add('show');
+
+  // Navigate after brief delay
+  setTimeout(() => {
+    window.location.href = PAGES[id];
+  }, 1200);
+}
+
+function getLabelFor(id) {
+  const labels = { assessment: 'Assessment Execution Engine', migration: 'Migration Execution Engine', testing: 'Testing Execution Engine', pmo: 'PMO Reporting Engine' };
+  return labels[id] || id;
+}
+
+function getGradientFor(id) {
+  const g = {
+    assessment: 'linear-gradient(135deg,#3B82F6,#22D3EE)',
+    migration:  'linear-gradient(135deg,#8B5CF6,#3B82F6)',
+    testing:    'linear-gradient(135deg,#10B981,#22D3EE)',
+    pmo:        'linear-gradient(135deg,#F59E0B,#EF4444)',
+  };
+  return g[id] || 'linear-gradient(135deg,#3B82F6,#22D3EE)';
+}
+
+function getColorFor(id) {
+  const c = { assessment:'#22D3EE', migration:'#8B5CF6', testing:'#10B981', pmo:'#F59E0B' };
+  return c[id] || '#38BDF8';
+}
+
+// ── ANIMATE DELAYED ELEMENTS ──────────────────────────────────────────
+document.querySelectorAll('.animate-in[style*="opacity:0"]').forEach(el => {
+  el.style.opacity = '';
+});
+
+// CSS animation for staggered
+document.querySelectorAll('.animate-in').forEach((el, i) => {
+  el.style.animation = `loginEntrance 0.6s ease ${i * 0.12}s forwards`;
+  el.style.opacity = '0';
+});
+
+// ── HEALTH CHECK ──────────────────────────────────────────────────────
+async function checkHealth() {
+  try {
+    const r = await fetch('http://localhost:8010/api/health', { signal: AbortSignal.timeout(3000) });
+    if (r.ok) {
+      const data = await r.json();
+      document.getElementById('claude-status').textContent = data.claude_ok ? 'CONNECTED' : 'API KEY NEEDED';
+      document.getElementById('claude-status').style.color = data.claude_ok ? 'var(--accent-emerald)' : 'var(--accent-amber)';
+
+      if (data.github_connected) {
+        document.getElementById('gh-status').textContent = `CONNECTED · @${data.github_user || 'kalyan2212'}`;
+        document.getElementById('gh-status').style.color = 'var(--accent-emerald)';
+        document.getElementById('gh-dot').className = 'status-dot';
+      }
+
+      // KPIs
+      if (data.kpis) {
+        document.getElementById('qs-apps').textContent = data.kpis.total_apps || '—';
+        document.getElementById('qs-migrated').textContent = data.kpis.migrated || '0';
+        document.getElementById('qs-pending').textContent = data.kpis.pending || '—';
+        document.getElementById('qs-waves').textContent = `${data.kpis.wave_progress || 0}%`;
+      }
+    }
+  } catch(e) {
+    // Backend not running — demo mode
+    document.getElementById('claude-status').textContent = 'BACKEND OFFLINE';
+    document.getElementById('claude-status').style.color = 'var(--accent-red)';
+  }
+}
+
+checkHealth();
+</script>
+</body>
+</html>

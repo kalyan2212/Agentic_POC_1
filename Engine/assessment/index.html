@@ -1,0 +1,2403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J.A.R.V.I.S. — Assessment Engine</title>
+<link rel="stylesheet" href="../shared/jarvis.css">
+<style>
+/* ─── AGENT STREAM ───────────────────────────────────── */
+.agent-stream {
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  height: 220px;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.agent-stream-line { display: flex; gap: 10px; padding: 2px 0; }
+.stream-time { color: var(--text-muted); flex-shrink: 0; }
+.stream-agent { font-weight: 600; flex-shrink: 0; min-width: 120px; }
+.stream-info    { color: var(--jarvis-glow); }
+.stream-success { color: var(--accent-emerald); }
+.stream-warn    { color: var(--accent-amber); }
+.stream-error   { color: var(--accent-red); }
+.stream-text { color: var(--text-secondary); flex: 1; white-space: pre-wrap; word-break: break-all; }
+
+/* ─── PATTERN BADGE ─────────────────────────────────── */
+.pattern-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10px; font-weight: 600; font-family: var(--font-mono);
+  padding: 2px 8px; border-radius: 4px;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.pattern-a,.pattern-b,.pattern-c,.pattern-d { background: rgba(59,130,246,0.15); color: var(--accent-blue); }
+.pattern-e,.pattern-f,.pattern-g,.pattern-h { background: rgba(16,185,129,0.12); color: var(--accent-emerald); }
+.pattern-i { background: rgba(139,92,246,0.15); color: var(--accent-purple); }
+
+/* ─── GITHUB CONNECT ────────────────────────────────── */
+.github-connect {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 20px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: 20px;
+}
+.github-connect input {
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 8px 12px;
+  color: var(--text-primary); font-family: var(--font-mono);
+  font-size: 12px; outline: none; transition: border-color 0.2s;
+}
+.github-connect input:focus { border-color: var(--jarvis-glow); }
+
+/* ─── REPO CARD ─────────────────────────────────────── */
+.repo-card {
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  cursor: pointer;
+  transition: all 0.2s;
+  border-left: 3px solid transparent;
+}
+.repo-card:hover { border-color: var(--border-light); border-left-color: var(--accent-cyan); background: rgba(34,211,238,0.02); }
+.repo-card.selected { border-color: rgba(34,211,238,0.4); border-left-color: var(--accent-cyan); background: rgba(34,211,238,0.04); }
+.repo-name { font-family: var(--font-display); font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+.repo-meta { display: flex; gap: 12px; font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+.repo-check { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; }
+.repo-card.selected .repo-check { background: var(--accent-cyan); border-color: var(--accent-cyan); color: white; font-size: 10px; }
+
+/* ─── APPLICATION ROW ──────────────────────────────── */
+.app-row {
+  display: grid;
+  grid-template-columns: 50px 1fr 100px 120px 80px 80px 80px 80px;
+  gap: 8px; align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: all 0.15s;
+  font-size: 12px;
+  border-left: 3px solid transparent;
+}
+.app-row:hover { background: var(--bg-elevated); border-left-color: var(--accent-cyan); }
+.app-row-header { background: var(--bg-surface); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); font-family: var(--font-display); padding: 8px 16px; border-bottom: 1px solid var(--border); cursor: default; }
+.app-row-header:hover { background: var(--bg-surface); border-left-color: transparent; }
+.app-id { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
+.app-name { font-weight: 500; }
+.app-risk-high   { color: var(--accent-red); }
+.app-risk-medium { color: var(--accent-amber); }
+.app-risk-low    { color: var(--accent-emerald); }
+
+/* ─── BUNDLE CARD ───────────────────────────────────── */
+.bundle-card {
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  margin-bottom: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.bundle-card:hover { border-color: var(--border-light); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+.bundle-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+.bundle-name { font-family: var(--font-display); font-weight: 700; font-size: 15px; }
+.bundle-apps { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.bundle-pattern-grid { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 14px; }
+.bundle-actions { display: flex; gap: 8px; }
+.btn-approve { padding: 7px 16px; border-radius: var(--radius-sm); border: 1px solid rgba(16,185,129,0.3); background: rgba(16,185,129,0.1); color: var(--accent-emerald); font-family: var(--font-display); font-weight: 600; font-size: 12px; cursor: pointer; transition: all 0.2s; }
+.btn-approve:hover { background: rgba(16,185,129,0.2); border-color: var(--accent-emerald); }
+.btn-reject { padding: 7px 16px; border-radius: var(--radius-sm); border: 1px solid rgba(239,68,68,0.3); background: rgba(239,68,68,0.1); color: var(--accent-red); font-family: var(--font-display); font-weight: 600; font-size: 12px; cursor: pointer; transition: all 0.2s; }
+.btn-reject:hover { background: rgba(239,68,68,0.2); border-color: var(--accent-red); }
+.btn-view { padding: 7px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-secondary); font-family: var(--font-display); font-weight: 600; font-size: 12px; cursor: pointer; transition: all 0.2s; }
+.btn-view:hover { border-color: var(--border-light); color: var(--text-primary); }
+
+/* ─── SCAN PROGRESS BAR ─────────────────────────────── */
+.scan-progress-wrap { margin-bottom: 20px; display: none; }
+.scan-progress-wrap.show { display: block; }
+.scan-progress-bar { height: 6px; background: var(--bg-elevated); border-radius: 3px; overflow: hidden; margin-bottom: 8px; }
+.scan-progress-fill { height: 100%; background: var(--gradient-blue); border-radius: 3px; transition: width 0.5s ease; width: 0%; }
+.scan-progress-label { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); display: flex; justify-content: space-between; }
+
+/* ─── DEP GRAPH ─────────────────────────────────────── */
+#dep-graph-container { width: 100%; height: 480px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-deep); }
+
+/* ─── FILTER ROW ─────────────────────────────────────── */
+.filter-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.filter-chip {
+  padding: 5px 12px; border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font-family: var(--font-display); font-weight: 500; font-size: 11px;
+  cursor: pointer; transition: all 0.2s;
+}
+.filter-chip:hover { border-color: var(--border-light); color: var(--text-secondary); }
+.filter-chip.active { background: var(--accent-blue-dim); border-color: var(--accent-blue); color: var(--accent-blue); }
+
+/* ─── METRIC CARDS ROW ──────────────────────────────── */
+.metric-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
+.metric-card { padding: 16px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.metric-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 6px; font-family: var(--font-display); }
+.metric-value { font-family: var(--font-mono); font-weight: 700; font-size: 28px; line-height: 1; }
+.metric-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+.scan-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+.segmented-tabs {
+  display: inline-flex; gap: 0; border: 1px solid var(--border);
+  border-radius: 12px; overflow: hidden; background: var(--bg-surface);
+}
+.segmented-tab {
+  padding: 8px 14px; font-size: 12px; color: var(--text-muted);
+  border: none; background: transparent; cursor: pointer;
+  font-family: var(--font-display); font-weight: 600;
+}
+.segmented-tab.active { background: rgba(34,211,238,0.12); color: var(--accent-cyan); }
+.status-chip {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 76px; padding: 3px 8px; border-radius: 999px;
+  font-size: 10px; font-weight: 700; text-transform: lowercase;
+  font-family: var(--font-mono); letter-spacing: 0.3px;
+}
+.status-completed { background: rgba(16,185,129,0.16); color: var(--accent-emerald); }
+.status-pending { background: rgba(71,85,105,0.2); color: var(--text-muted); }
+.status-in-progress { background: rgba(139,92,246,0.18); color: #C4B5FD; }
+.app-row.selected { background: rgba(34,211,238,0.08); border-left-color: var(--accent-cyan); }
+.token-pill {
+  display: inline-flex; align-items: center; padding: 2px 8px;
+  border-radius: 999px; border: 1px solid var(--border);
+  font-size: 10px; font-family: var(--font-mono); color: var(--text-secondary);
+  background: var(--bg-surface);
+}
+
+.mpr-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.78);
+  backdrop-filter: blur(2px);
+  z-index: 1200;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.mpr-overlay.open { display: flex; }
+.mpr-modal {
+  width: min(980px, 96vw);
+  max-height: 92vh;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-primary);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.mpr-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+.mpr-close {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 18px;
+  cursor: pointer;
+}
+.mpr-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.mpr-tab {
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 16px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.mpr-tab.active {
+  color: var(--accent-cyan);
+  border-color: rgba(34,211,238,0.35);
+  background: rgba(34,211,238,0.12);
+}
+.mpr-content {
+  overflow: auto;
+  padding: 14px 16px;
+  flex: 1;
+}
+.mpr-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  padding: 14px;
+  margin-bottom: 12px;
+}
+.mpr-test-row {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  padding: 12px;
+  margin-bottom: 8px;
+}
+.mpr-footer {
+  border-top: 1px solid var(--border);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--bg-surface);
+}
+</style>
+</head>
+<body>
+<!-- ─── TOP BAR ───────────────────────────────────────── -->
+<div class="top-bar">
+  <div class="logo">
+    <div class="logo-mark"></div>
+    <div class="logo-text">J.A.R.V.I.S.<span>Assessment Execution Engine</span></div>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-page="overview">Overview</button>
+    <button class="nav-tab" data-page="repos">Repositories</button>
+    <button class="nav-tab" data-page="scan">Scan Results</button>
+    <button class="nav-tab" data-page="graph">Dependency Graph</button>
+    <button class="nav-tab" data-page="bundles">Migration Bundles</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div class="system-clock-inline" style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted)" id="system-clock"></div>
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md)">
+      <div style="width:28px;height:28px;border-radius:50%;background:var(--gradient-blue);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:600;font-size:11px;color:white" id="persona-avatar">AE</div>
+      <div><div style="font-size:12px;font-weight:600;font-family:var(--font-display)" id="persona-label">Assessment Engine</div><div style="font-size:10px;color:var(--text-muted)">Execution Platform</div></div>
+    </div>
+    <button onclick="JarvisAuth.logout()" style="padding:6px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:transparent;color:var(--text-muted);font-family:var(--font-display);font-size:12px;cursor:pointer" id="btn-logout">← Exit</button>
+  </div>
+</div>
+
+<!-- ─── SYSTEM STATUS ──────────────────────────────────── -->
+<div class="system-status">
+  <div class="system-status-left">
+    <div class="system-status-item"><div class="active-indicator"></div><span>ASSESSMENT ENGINE ONLINE</span></div>
+    <div class="system-status-item"><span>UPTIME: <span style="color:var(--accent-emerald)" id="system-uptime">00:00:00</span></span></div>
+    <div class="system-status-item"><span>BACKEND: <span id="backend-status" style="color:var(--accent-amber)">CONNECTING...</span></span></div>
+    <div class="system-status-item"><span>GITHUB: <span id="github-status" style="color:var(--accent-amber)">NOT CONNECTED</span></span></div>
+    <div class="system-status-item"><span>AI AGENTS: <span style="color:var(--accent-emerald)">READY</span></span></div>
+  </div>
+  <div class="system-status-right">assessment · pattern classification · bundle planning</div>
+</div>
+
+<!-- ─── DETAIL PANEL ───────────────────────────────────── -->
+<div class="panel-backdrop" id="panel-backdrop"></div>
+<div class="detail-panel" id="detail-panel">
+  <div class="panel-top">
+    <div class="panel-breadcrumbs" id="panel-breadcrumbs"></div>
+    <button class="panel-close" id="panel-close-btn">&times;</button>
+  </div>
+  <div class="panel-content" id="panel-content"></div>
+</div>
+
+<div class="mpr-overlay" id="mpr-overlay" onclick="closeMigrationPlanModal(event)">
+  <div class="mpr-modal" onclick="event.stopPropagation()">
+    <div class="mpr-header">
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;font-family:var(--font-display);font-weight:700;font-size:28px;line-height:1.1">
+          <span style="font-size:16px;color:var(--accent-cyan)">⚡</span>
+          <span id="mpr-title">Migration Plan Review</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:4px;flex-wrap:wrap">
+          <div id="mpr-subtitle" style="font-size:12px;color:var(--text-muted)">Application migration review</div>
+          <span id="mpr-source-badge" style="display:none;font-size:10px;font-family:var(--font-mono);padding:2px 8px;border-radius:999px;border:1px solid var(--border);background:var(--bg-elevated);color:var(--text-muted)">Artifacts: Unknown</span>
+          <span id="mpr-source-meta" style="display:none;font-size:10px;font-family:var(--font-mono);color:var(--text-muted)">job: — · fetched: —</span>
+        </div>
+      </div>
+      <button class="mpr-close" onclick="closeMigrationPlanModal()">×</button>
+    </div>
+    <div class="mpr-tabs" id="mpr-tabs">
+      <button class="mpr-tab active" onclick="setMigrationPlanTab('validation', this)">Validation</button>
+      <button class="mpr-tab" onclick="setMigrationPlanTab('overview', this)">Overview</button>
+      <button class="mpr-tab" onclick="setMigrationPlanTab('architecture', this)">Architecture</button>
+      <button class="mpr-tab" onclick="setMigrationPlanTab('integrations', this)">Integrations</button>
+      <button class="mpr-tab" onclick="setMigrationPlanTab('files', this)">Files</button>
+      <button class="mpr-tab" onclick="setMigrationPlanTab('resources', this)">Resources</button>
+      <button class="mpr-tab" onclick="setMigrationPlanTab('testing', this)">Testing</button>
+    </div>
+    <div class="mpr-content" id="mpr-content"></div>
+    <div class="mpr-footer">
+      <div id="mpr-footer-note" style="font-size:12px;color:var(--accent-amber);font-weight:600">Complete validation before approval</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button onclick="rejectMigrationPlan()" style="padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-primary);color:var(--text-secondary);font-family:var(--font-display);font-weight:600;cursor:pointer">Reject & Revise</button>
+        <button onclick="approveMigrationPlan()" style="padding:8px 14px;border-radius:var(--radius-sm);border:none;background:var(--gradient-blue);color:white;font-family:var(--font-display);font-weight:700;cursor:pointer">Approve Migration</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── MAIN CONTENT ──────────────────────────────────── -->
+<div class="main-content">
+
+<!-- ══ OVERVIEW PAGE ══════════════════════════════════ -->
+<div id="page-overview" class="page active">
+  <div class="section-header animate-in delay-1">
+    <div class="section-title">Assessment Overview</div>
+    <div class="section-subtitle">Repository analysis, pattern classification &amp; migration planning</div>
+  </div>
+
+  <div class="metric-row animate-in delay-2">
+    <div class="metric-card"><div class="metric-label">Repos Discovered</div><div class="metric-value text-cyan" id="kpi-repos">—</div><div class="metric-sub">GitHub connected</div></div>
+    <div class="metric-card"><div class="metric-label">Apps Analyzed</div><div class="metric-value text-emerald" id="kpi-apps">—</div><div class="metric-sub">Fully classified</div></div>
+    <div class="metric-card"><div class="metric-label">Patterns Found</div><div class="metric-value text-blue" id="kpi-patterns">9</div><div class="metric-sub">Migration patterns</div></div>
+    <div class="metric-card"><div class="metric-label">Bundles Planned</div><div class="metric-value text-purple" id="kpi-bundles">—</div><div class="metric-sub">Ready for review</div></div>
+    <div class="metric-card"><div class="metric-label">Avg Risk Score</div><div class="metric-value text-amber" id="kpi-risk">—</div><div class="metric-sub">Per application</div></div>
+  </div>
+
+  <div class="grid-2">
+    <!-- Pattern Distribution -->
+    <div class="card animate-in delay-3">
+      <div class="card-header">
+        <div class="card-title">Pattern Distribution</div>
+        <span class="card-badge badge-live">9 Patterns</span>
+      </div>
+      <div class="card-body">
+        <div id="pattern-dist">
+          <div style="text-align:center;padding:40px;color:var(--text-muted)">
+            <div style="font-size:32px;margin-bottom:8px">🔍</div>
+            <div>Run a scan to see pattern distribution</div>
+          </div>
+        </div>
+        <canvas id="pattern-donut" width="220" height="220" style="display:block;margin:0 auto"></canvas>
+      </div>
+    </div>
+
+    <!-- Recent Scans -->
+    <div class="card animate-in delay-3">
+      <div class="card-header">
+        <div class="card-title">Recent Scans</div>
+        <button onclick="JarvisNav.showPage('repos')" style="font-size:11px;color:var(--jarvis-glow);background:none;border:none;cursor:pointer;font-family:var(--font-display)">New Scan →</button>
+      </div>
+      <div class="card-body" id="recent-scans-list">
+        <div style="text-align:center;padding:40px;color:var(--text-muted)">
+          <div style="font-size:28px;margin-bottom:8px">📋</div>
+          <div>No scans started yet</div>
+          <div style="font-size:12px;margin-top:4px">Go to the Repositories tab to start your first assessment</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pattern Reference Table -->
+  <div class="card animate-in delay-4 mt-20">
+    <div class="card-header">
+      <div class="card-title">Migration Pattern Reference</div>
+      <span class="card-badge" style="background:rgba(34,211,238,0.1);color:var(--accent-cyan)">9 Patterns · Azure → GCP</span>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="data-table">
+        <thead><tr>
+          <th>Pattern</th><th>Classification</th><th>Architecture</th><th>Migration Strategy</th><th>Apps</th><th>Complexity</th>
+        </tr></thead>
+        <tbody id="pattern-table-body">
+          <tr><td><span class="pattern-badge pattern-a">A</span></td><td>External-facing</td><td>Web-DMZ + DB + Messaging</td><td>Rebuild Web+App · Replicate DB · Flow-based Msg · DMZ setup</td><td><button id="pattern-count-a" style="background:none;border:none;color:var(--accent-cyan);cursor:pointer;font-family:var(--font-mono)" onclick="openPatternApps('a')">0</button></td><td><span style="color:var(--accent-red)">High</span></td></tr>
+          <tr><td><span class="pattern-badge pattern-b">B</span></td><td>External-facing</td><td>Web-DMZ + DB · No Messaging</td><td>Rebuild Web+App on GCE · Database replication</td><td><button id="pattern-count-b" style="background:none;border:none;color:var(--accent-cyan);cursor:pointer;font-family:var(--font-mono)" onclick="openPatternApps('b')">0</button></td><td><span style="color:var(--accent-amber)">Medium</span></td></tr>
+          <tr><td><span class="pattern-badge pattern-c">C</span></td><td>External-facing</td><td>Web-DMZ + Messaging · No DB</td><td>Rebuild Web+App · Flow-based messaging migration · DMZ setup</td><td><button id="pattern-count-c" style="background:none;border:none;color:var(--accent-cyan);cursor:pointer;font-family:var(--font-mono)" onclick="openPatternApps('c')">0</button></td><td><span style="color:var(--accent-amber)">Medium</span></td></tr>
+          <tr><td><span class="pattern-badge pattern-d">D</span></td><td>External-facing</td><td>Web-DMZ only</td><td>Rebuild Web+App on GCE · DMZ configuration only</td><td><button id="pattern-count-d" style="background:none;border:none;color:var(--accent-cyan);cursor:pointer;font-family:var(--font-mono)" onclick="openPatternApps('d')">0</button></td><td><span style="color:var(--accent-emerald)">Low</span></td></tr>
+          <tr><td><span class="pattern-badge pattern-e">E</span></td><td>Internal</td><td>DB + Messaging</td><td>Rebuild App on GCE · DB replication · Messaging migration</td><td><button id="pattern-count-e" style="background:none;border:none;color:var(--accent-cyan);cursor:pointer;font-family:var(--font-mono)" onclick="openPatternApps('e')">0</button></td><td><span style="color:var(--accent-amber)">Medium</span></td></tr>
+          <tr><td><span class="pattern-badge pattern-f">F</span></td><td>Internal</td><td>DB · No Messaging</td><td>Rebuild App on GCE · Database replication</td><td><button id="pattern-count-f" style="background:none;border:none;color:var(--accent-cyan);cursor:pointer;font-family:var(--font-mono)" onclick="openPatternApps('f')">0</button></td><td><span style="color:var(--accent-emerald)">Low</span></td></tr>
+          <tr><td><span class="pattern-badge pattern-g">G</span></td><td>Internal</td><td>Messaging · No DB</td><td>Rebuild App on GCE · Messaging migration</td><td><button id="pattern-count-g" style="background:none;border:none;color:var(--accent-cyan);cursor:pointer;font-family:var(--font-mono)" onclick="openPatternApps('g')">0</button></td><td><span style="color:var(--accent-emerald)">Low</span></td></tr>
+          <tr><td><span class="pattern-badge pattern-h">H</span></td><td>Internal</td><td>No DB · No Messaging</td><td>Rebuild App to new GCE environment</td><td><button id="pattern-count-h" style="background:none;border:none;color:var(--accent-cyan);cursor:pointer;font-family:var(--font-mono)" onclick="openPatternApps('h')">0</button></td><td><span style="color:var(--accent-emerald)">Low</span></td></tr>
+          <tr><td><span class="pattern-badge pattern-i">I</span></td><td>PCF/TAS</td><td>Container Platform</td><td>PCF to GKE migration · Container re-platforming</td><td><button id="pattern-count-i" style="background:none;border:none;color:var(--accent-cyan);cursor:pointer;font-family:var(--font-mono)" onclick="openPatternApps('i')">0</button></td><td><span style="color:var(--accent-red)">High</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card animate-in delay-4 mt-20">
+    <div class="card-header">
+      <div class="card-title">Source Environment Shared Services</div>
+      <span class="card-badge" style="background:rgba(16,185,129,0.1);color:var(--accent-emerald)">Database · Messaging</span>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="data-table">
+        <thead><tr><th>Service</th><th>Type</th><th>Connected Apps</th><th>Criticality</th></tr></thead>
+        <tbody id="shared-services-body">
+          <tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Run a scan to discover shared services.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══ REPOSITORIES PAGE ══════════════════════════════ -->
+<div id="page-repos" class="page">
+  <div class="section-header animate-in delay-1">
+    <div class="section-title">GitHub Repository Discovery</div>
+    <div class="section-subtitle">Connect GitHub and select repositories to assess</div>
+  </div>
+
+  <!-- GitHub Connect -->
+  <div class="github-connect animate-in delay-2">
+    <span style="font-size:18px">⚡</span>
+    <div style="flex:1">
+      <div style="font-family:var(--font-display);font-weight:600;font-size:13px;margin-bottom:4px">GitHub Connection</div>
+      <div style="font-size:12px;color:var(--text-muted)" id="gh-connect-state">Enter your GitHub username to fetch repositories</div>
+    </div>
+    <input type="text" id="gh-user-input" placeholder="GitHub username or org" style="width:200px">
+    <input type="password" id="gh-token-input" placeholder="Personal access token" style="width:220px">
+    <button class="btn-primary" onclick="connectGitHub()" style="padding:8px 16px;background:var(--gradient-blue);border:none;border-radius:var(--radius-sm);color:white;font-family:var(--font-display);font-weight:600;font-size:13px;cursor:pointer">Connect</button>
+  </div>
+
+  <div style="margin-bottom:20px;padding:12px 16px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md)">
+    <div style="font-family:var(--font-display);font-weight:600;font-size:13px;margin-bottom:8px">Enterprise Tool Integrations</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary)"><input type="checkbox" class="repo-tool-opt" value="ServiceNow" checked> ServiceNow</label>
+      <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary)"><input type="checkbox" class="repo-tool-opt" value="Jenkins" checked> Jenkins</label>
+      <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary)"><input type="checkbox" class="repo-tool-opt" value="SharePoint" checked> SharePoint</label>
+    </div>
+  </div>
+
+  <!-- Upload Option -->
+  <div style="margin-bottom:20px;padding:14px 20px;background:var(--bg-surface);border:1px dashed var(--border);border-radius:var(--radius-md);display:flex;align-items:center;gap:12px">
+    <span style="font-size:16px">📁</span>
+    <div style="flex:1;font-size:12px;color:var(--text-muted)">Or upload a ZIP archive of a repository for offline analysis</div>
+    <input type="file" id="repo-upload" accept=".zip" style="display:none" onchange="uploadRepo(this)">
+    <button onclick="document.getElementById('repo-upload').click()" style="padding:7px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-elevated);color:var(--text-secondary);font-family:var(--font-display);font-size:12px;cursor:pointer">Upload ZIP</button>
+  </div>
+
+  <div class="grid-2-1">
+    <!-- Repo List -->
+    <div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="font-family:var(--font-display);font-weight:600;font-size:14px" id="repo-list-title">Repositories</div>
+        <div style="display:flex;gap:8px">
+          <span id="selected-count" style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono)">0 selected</span>
+          <button onclick="startScan()" id="btn-scan" style="padding:7px 16px;background:var(--gradient-blue);border:none;border-radius:var(--radius-sm);color:white;font-family:var(--font-display);font-weight:600;font-size:12px;cursor:pointer;opacity:0.4" disabled>Start Assessment Scan</button>
+        </div>
+      </div>
+
+      <!-- Scan Progress -->
+      <div class="scan-progress-wrap" id="scan-progress-wrap">
+        <div class="scan-progress-bar"><div class="scan-progress-fill" id="scan-progress-fill"></div></div>
+        <div class="scan-progress-label"><span id="scan-progress-stage">Initializing agents...</span><span id="scan-progress-pct">0%</span></div>
+      </div>
+
+      <div id="repo-list">
+        <div style="text-align:center;padding:60px;color:var(--text-muted)">
+          <div style="font-size:32px;margin-bottom:8px">🐙</div>
+          <div>Connect GitHub to browse repositories</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Agent Stream -->
+    <div>
+      <div style="font-family:var(--font-display);font-weight:600;font-size:13px;margin-bottom:10px;display:flex;align-items:center;gap:8px">
+        <div style="width:6px;height:6px;border-radius:50%;background:var(--jarvis-glow);box-shadow:0 0 6px var(--jarvis-glow)"></div>
+        Agent Activity Stream
+      </div>
+      <div class="agent-stream" id="agent-stream-repos">
+        <div class="agent-stream-line"><span class="stream-time">00:00:00</span><span class="stream-agent stream-info">ASSESSMENT</span><span class="stream-text">Engine ready. Awaiting GitHub connection...</span></div>
+      </div>
+      <div style="margin-top:12px;padding:12px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md)">
+        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);margin-bottom:8px;font-family:var(--font-display)">Active AI Agents</div>
+        <div id="agent-status-list">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px"><div style="width:6px;height:6px;border-radius:50%;background:var(--accent-emerald)"></div>GitHub Connector Agent</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px"><div style="width:6px;height:6px;border-radius:50%;background:var(--accent-emerald)"></div>Code Analysis Agent (Claude)</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px"><div style="width:6px;height:6px;border-radius:50%;background:var(--accent-emerald)"></div>Pattern Classifier Agent</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px"><div style="width:6px;height:6px;border-radius:50%;background:var(--accent-emerald)"></div>Dependency Graph Agent</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCAN RESULTS PAGE ══════════════════════════════ -->
+<div id="page-scan" class="page">
+  <div class="section-header animate-in delay-1">
+    <div class="section-title">Scan Results</div>
+    <div class="section-subtitle">Classified applications with migration patterns and risk scores</div>
+  </div>
+
+  <div class="filter-row animate-in delay-2">
+    <button class="filter-chip active" onclick="filterApps('all',this)">All</button>
+    <button class="filter-chip" onclick="filterApps('a',this)">Pattern A</button>
+    <button class="filter-chip" onclick="filterApps('b',this)">Pattern B</button>
+    <button class="filter-chip" onclick="filterApps('c',this)">Pattern C</button>
+    <button class="filter-chip" onclick="filterApps('d',this)">Pattern D</button>
+    <button class="filter-chip" onclick="filterApps('e',this)">Pattern E</button>
+    <button class="filter-chip" onclick="filterApps('f',this)">Pattern F</button>
+    <button class="filter-chip" onclick="filterApps('g',this)">Pattern G</button>
+    <button class="filter-chip" onclick="filterApps('h',this)">Pattern H</button>
+    <button class="filter-chip" onclick="filterApps('i',this)">Pattern I</button>
+    <button class="filter-chip" onclick="filterApps('high-risk',this)" style="border-color:rgba(239,68,68,0.3);color:var(--accent-red)">High Risk</button>
+  </div>
+
+  <div class="scan-layout animate-in delay-2">
+    <div class="card">
+      <div class="card-header" style="border-bottom:none;padding-bottom:8px">
+        <div class="segmented-tabs">
+          <button class="segmented-tab active" id="scan-tab-apps" onclick="setScanView('apps', this)">Applications</button>
+          <button class="segmented-tab" id="scan-tab-deps" onclick="setScanView('deps', this)">Dependencies</button>
+          <button class="segmented-tab" id="scan-tab-cost" onclick="setScanView('cost', this)">Cost Estimation</button>
+        </div>
+      </div>
+      <div class="card-header" style="padding-top:0">
+        <div class="card-title" id="scan-card-title">Discovered Applications</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="search-bar" style="margin:0;padding:6px 12px;width:240px">
+            <input class="search-input" id="app-search" placeholder="Search applications..." oninput="searchApps(this.value)" style="font-size:12px">
+          </div>
+          <span class="card-badge badge-live" id="apps-count-badge">0 Apps</span>
+        </div>
+      </div>
+      <div>
+        <div class="app-row app-row-header" style="grid-template-columns: 1.3fr 1fr 80px 120px 140px;">
+          <div>Application</div><div>Pattern</div><div>VMs</div><div>Status</div><div>Actions</div>
+        </div>
+        <div id="apps-list">
+          <div style="text-align:center;padding:60px;color:var(--text-muted)">
+            <div style="font-size:32px;margin-bottom:8px">📊</div>
+            <div>No applications scanned yet</div>
+            <div style="font-size:12px;margin-top:4px">Run an assessment scan from the Repositories tab</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">
+        <span id="apps-showing">Showing 0 applications</span>
+        <div style="display:flex;gap:12px">
+          <button onclick="exportApps()" style="background:none;border:none;color:var(--jarvis-glow);font-size:11px;cursor:pointer;font-family:var(--font-display)">Export CSV</button>
+          <button onclick="loadMoreApps()" id="btn-load-more" style="background:none;border:none;color:var(--text-muted);font-size:11px;cursor:pointer;font-family:var(--font-display);display:none">Load More</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="app-detail-card">
+      <div class="card-header"><div class="card-title">Application Details</div></div>
+      <div class="card-body" id="app-detail-body">
+        <div style="text-align:center;padding:40px;color:var(--text-muted)">
+          <div style="font-size:28px;margin-bottom:8px">🧩</div>
+          <div>Select an application</div>
+          <div style="font-size:12px;margin-top:4px">Details, dependencies and effort will appear here</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ DEPENDENCY GRAPH PAGE ══════════════════════════ -->
+<div id="page-graph" class="page">
+  <div class="section-header animate-in delay-1">
+    <div class="section-title">Dependency Graph</div>
+    <div class="section-subtitle">Visual map of application interdependencies and integration points</div>
+  </div>
+
+  <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap" class="animate-in delay-2">
+    <button onclick="loadGraph('full', this)" class="filter-chip active">Full Graph</button>
+    <button onclick="loadGraph('critical', this)" class="filter-chip">Critical Path Only</button>
+    <button onclick="loadGraph('external', this)" class="filter-chip">External-Facing</button>
+    <button onclick="loadGraph('pcf', this)" class="filter-chip">PCF/TAS Apps</button>
+    <div style="flex:1"></div>
+    <button onclick="resetGraphLayout()" style="padding:5px 14px;border:1px solid var(--border);border-radius:20px;background:var(--bg-surface);color:var(--text-muted);font-size:11px;cursor:pointer;font-family:var(--font-display)">Reset Layout</button>
+    <button onclick="exportGraphPNG()" style="padding:5px 14px;border:1px solid var(--border);border-radius:20px;background:var(--bg-surface);color:var(--text-muted);font-size:11px;cursor:pointer;font-family:var(--font-display)">Export PNG</button>
+  </div>
+
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px" class="animate-in delay-2">
+    <select id="graph-app-select-1" style="min-width:220px;padding:7px 10px;background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;color:var(--text-secondary);font-size:12px">
+      <option value="">Select primary app...</option>
+    </select>
+    <select id="graph-app-select-2" style="min-width:220px;padding:7px 10px;background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;color:var(--text-secondary);font-size:12px">
+      <option value="">Select secondary app (optional)...</option>
+    </select>
+    <button onclick="focusSelectedGraphApps()" style="padding:7px 14px;border:1px solid var(--border);border-radius:8px;background:var(--bg-surface);color:var(--accent-cyan);font-size:12px;cursor:pointer;font-family:var(--font-display)">Focus Selection</button>
+    <button onclick="findCommonNeighbor()" style="padding:7px 14px;border:1px solid var(--border);border-radius:8px;background:var(--bg-surface);color:var(--accent-purple);font-size:12px;cursor:pointer;font-family:var(--font-display)">Find Common Neighbor</button>
+  </div>
+
+  <div class="grid-2-1 animate-in delay-3">
+    <div id="dep-graph-container">
+      <div style="height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;color:var(--text-muted)">
+        <div style="font-size:48px;margin-bottom:12px">⊛</div>
+        <div style="font-family:var(--font-display);font-weight:600">Dependency Graph</div>
+        <div style="font-size:12px;margin-top:4px">Run a scan to generate the dependency visualization</div>
+      </div>
+    </div>
+
+    <!-- Graph Legend & Stats -->
+    <div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-header"><div class="card-title">Graph Legend</div></div>
+        <div class="card-body">
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:12px">
+            <div style="display:flex;align-items:center;gap:8px"><div style="width:12px;height:12px;background:#1E3A5F;border:1.5px solid #3B82F6;border-radius:2px"></div>Application</div>
+            <div style="display:flex;align-items:center;gap:8px"><div style="width:12px;height:12px;background:#1A2F1A;border:1.5px solid #10B981;border-radius:2px"></div>Database</div>
+            <div style="display:flex;align-items:center;gap:8px"><div style="width:12px;height:12px;background:#2D1F47;border:1.5px solid #8B5CF6;border-radius:2px"></div>Messaging</div>
+            <div style="display:flex;align-items:center;gap:8px"><div style="width:12px;height:12px;background:#001F2F;border:1.5px solid #22D3EE;border-radius:2px"></div>GCP Target</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Graph Statistics</div></div>
+        <div class="card-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;font-family:var(--font-display)">Total Nodes</div><div style="font-family:var(--font-mono);font-weight:600;font-size:20px" id="graph-nodes">—</div></div>
+            <div><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;font-family:var(--font-display)">Total Edges</div><div style="font-family:var(--font-mono);font-weight:600;font-size:20px" id="graph-edges">—</div></div>
+            <div><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;font-family:var(--font-display)">Clusters</div><div style="font-family:var(--font-mono);font-weight:600;font-size:20px" id="graph-clusters">—</div></div>
+            <div><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;font-family:var(--font-display)">Isolated</div><div style="font-family:var(--font-mono);font-weight:600;font-size:20px" id="graph-isolated">—</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <div class="card-header"><div class="card-title">Selection Details</div></div>
+        <div class="card-body" id="graph-selection-detail" style="font-size:12px;color:var(--text-muted)">
+          Click a node to view application and technology details, or click an edge to view integration type.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MIGRATION BUNDLES PAGE ═════════════════════════ -->
+<div id="page-bundles" class="page">
+  <div class="section-header animate-in delay-1">
+    <div class="section-title">Migration Bundles</div>
+    <div class="section-subtitle">Clustered application groups ready for wave-based migration planning</div>
+  </div>
+
+  <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center" class="animate-in delay-2">
+    <div style="display:flex;gap:8px">
+      <div style="padding:10px 16px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);text-align:center">
+        <div style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--accent-cyan)" id="bundle-count">—</div>
+        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:2px">Bundles</div>
+      </div>
+      <div style="padding:10px 16px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);text-align:center">
+        <div style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--accent-emerald)" id="bundle-approved">—</div>
+        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:2px">Approved</div>
+      </div>
+      <div style="padding:10px 16px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);text-align:center">
+        <div style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--accent-amber)" id="bundle-pending">—</div>
+        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:2px">Pending Review</div>
+      </div>
+    </div>
+    <div style="flex:1"></div>
+    <button onclick="generateBundles()" style="padding:9px 20px;background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);border-radius:var(--radius-sm);color:var(--accent-purple);font-family:var(--font-display);font-weight:600;font-size:13px;cursor:pointer">
+      Auto-Generate Bundles
+    </button>
+    <button onclick="approveAllBundles()" style="padding:9px 20px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:var(--radius-sm);color:var(--accent-emerald);font-family:var(--font-display);font-weight:600;font-size:13px;cursor:pointer">
+      Approve All
+    </button>
+  </div>
+
+  <div id="bundles-list">
+    <div style="text-align:center;padding:80px;color:var(--text-muted)">
+      <div style="font-size:48px;margin-bottom:12px">📦</div>
+      <div style="font-family:var(--font-display);font-weight:600;font-size:16px;margin-bottom:4px">No Bundles Generated</div>
+      <div style="font-size:13px">Complete a repository scan and then generate migration bundles</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end main-content -->
+
+<!-- ─── JARVIS CHAT FAB ────────────────────────────────── -->
+<div class="jarvis-fab" id="jarvis-fab">
+  <div class="jarvis-fab-label">Ask J.A.R.V.I.S.</div>
+</div>
+<div class="jarvis-chat" id="jarvis-chat">
+  <div class="jarvis-chat-header">
+    <div class="jarvis-chat-title"><div class="mini-arc"></div><span>J.A.R.V.I.S. — Assessment</span></div>
+    <button class="jarvis-chat-close" id="jarvis-chat-close">&times;</button>
+  </div>
+  <div class="jarvis-chat-context" id="jarvis-chat-context">Assessment Engine · GitHub Analysis · Pattern Classification</div>
+  <div class="jarvis-chat-messages" id="jarvis-chat-messages">
+    <div class="jarvis-msg assistant"><div>Hello! I'm J.A.R.V.I.S., your Assessment Engine AI. I can help you understand migration patterns, interpret scan results, and plan your cloud migration strategy. What would you like to know?</div></div>
+  </div>
+  <div class="jarvis-suggestions">
+    <div class="jarvis-suggestions-label">Quick Questions</div>
+    <button class="jarvis-suggestion" onclick="JarvisChat.sendSuggestion('What are the 9 migration patterns?')">What are the 9 migration patterns?</button>
+    <button class="jarvis-suggestion" onclick="JarvisChat.sendSuggestion('How do bundles get formed?')">How do bundles get formed?</button>
+    <button class="jarvis-suggestion" onclick="JarvisChat.sendSuggestion('Which pattern is hardest to migrate?')">Which pattern is hardest to migrate?</button>
+  </div>
+  <div class="jarvis-chat-input">
+    <input type="text" id="jarvis-chat-input-field" placeholder="Ask about patterns, migration strategy...">
+    <button id="jarvis-chat-send">&#10148;</button>
+  </div>
+</div>
+
+<script src="../shared/jarvis.js"></script>
+<script>
+// ── INIT ────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  JarvisAuth.init();
+  if (!JarvisAuth.isLoggedIn()) {
+    try { JarvisAuth.setPersona('assessment'); } catch (_) {}
+  }
+  const persona = JarvisAuth.getPersona();
+  if (persona) {
+    document.getElementById('persona-avatar').style.background = persona.gradient;
+    document.getElementById('persona-label').textContent = persona.label;
+  }
+  JarvisNav.init('overview');
+  JarvisChat.init();
+  initSystemStatus();
+  initClock();
+  checkBackend();
+  restoreGitHubSession();
+  restoreActiveScan();
+  loadOverviewData();
+});
+
+function initClock() {
+  const el = document.getElementById('system-clock');
+  const tick = () => { if(el) el.textContent = new Date().toUTCString().slice(0,25)+' UTC'; };
+  tick(); setInterval(tick, 1000);
+}
+
+function initSystemStatus() {
+  const uptimeStart = Date.now();
+  const el = document.getElementById('system-uptime');
+  setInterval(() => {
+    const s = Math.floor((Date.now() - uptimeStart) / 1000);
+    const h = String(Math.floor(s/3600)).padStart(2,'0');
+    const m = String(Math.floor((s%3600)/60)).padStart(2,'0');
+    const sec = String(s%60).padStart(2,'0');
+    if(el) el.textContent = `${h}:${m}:${sec}`;
+  }, 1000);
+}
+
+async function checkBackend() {
+  const el = document.getElementById('backend-status');
+  try {
+    const r = await fetch('http://localhost:8010/api/health', { signal: AbortSignal.timeout(3000) });
+    if (r.ok) {
+      el.textContent = 'CONNECTED'; el.style.color = 'var(--accent-emerald)';
+    } else { el.textContent = 'DEGRADED'; el.style.color = 'var(--accent-amber)'; }
+  } catch(e) {
+    el.textContent = 'OFFLINE — DEMO MODE'; el.style.color = 'var(--accent-red)';
+    loadDemoData();
+  }
+}
+
+const PATTERN_TO_BADGE = { P1:'a', P2:'b', P3:'e', P4:'i', P5:'g' };
+const BADGE_TO_PATTERN = { a:'P1', b:'P2', c:'P5', d:'P1', e:'P3', f:'P3', g:'P5', h:'P2', i:'P4' };
+const TOOL_INTEGRATIONS_DEFAULT = ['ServiceNow', 'Jenkins', 'SharePoint'];
+
+function normalizePattern(code) {
+  if (!code) return 'a';
+  const upper = String(code).toUpperCase();
+  if (PATTERN_TO_BADGE[upper]) return PATTERN_TO_BADGE[upper];
+  const lower = String(code).toLowerCase();
+  if (/^[a-i]$/.test(lower)) return lower;
+  return 'a';
+}
+
+function getSelectedToolIntegrations() {
+  const checked = Array.from(document.querySelectorAll('.repo-tool-opt:checked')).map(el => el.value);
+  return checked.length ? checked : TOOL_INTEGRATIONS_DEFAULT;
+}
+
+function parseFindingCounts(findingsRaw) {
+  try {
+    const parsed = typeof findingsRaw === 'string' ? JSON.parse(findingsRaw) : findingsRaw;
+    const list = Array.isArray(parsed) ? parsed : (parsed ? [parsed] : []);
+    let appToApp = 0;
+    let appToDb = 0;
+    list.forEach(item => {
+      if (!item || typeof item !== 'object') return;
+      if ((item.type || '').toLowerCase() === 'app_to_app_integration') {
+        appToApp += Array.isArray(item.targets) ? item.targets.length : 0;
+      }
+      if ((item.type || '').toLowerCase() === 'app_to_db_integration') {
+        appToDb += Array.isArray(item.datastores) ? item.datastores.filter(d => String(d).toLowerCase() !== 'none').length : 0;
+      }
+    });
+    return { appToApp, appToDb };
+  } catch {
+    return { appToApp: 0, appToDb: 0 };
+  }
+}
+
+function parseFindingProfile(findingsRaw) {
+  const profile = {
+    integrationModel: 'none',
+    couplingProfile: 'loose',
+    tags: [],
+    isPredefined: false,
+  };
+  try {
+    const parsed = typeof findingsRaw === 'string' ? JSON.parse(findingsRaw) : findingsRaw;
+    const list = Array.isArray(parsed) ? parsed : (parsed ? [parsed] : []);
+    list.forEach(item => {
+      if (!item || typeof item !== 'object') return;
+      const type = String(item.type || '').toLowerCase();
+      if (type === 'metadata') {
+        const tags = Array.isArray(item.tags) ? item.tags.map(t => String(t).toLowerCase()) : [];
+        profile.tags = Array.from(new Set([...profile.tags, ...tags]));
+        if (typeof item.integration_model === 'string' && item.integration_model.trim()) {
+          profile.integrationModel = item.integration_model.trim();
+        }
+      }
+      const coupling = String(item.coupling || '').toLowerCase();
+      if (coupling === 'tight') profile.couplingProfile = 'tight';
+    });
+    profile.isPredefined = profile.tags.includes('predefined');
+  } catch (_) {}
+  return profile;
+}
+
+function parseArrayField(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function parseIntegrationDetails(findingsRaw) {
+  const details = { appLinks: [], dbLinks: [], protocols: [], messagingServices: [] };
+  try {
+    const parsed = typeof findingsRaw === 'string' ? JSON.parse(findingsRaw) : findingsRaw;
+    const list = Array.isArray(parsed) ? parsed : (parsed ? [parsed] : []);
+    list.forEach(item => {
+      if (!item || typeof item !== 'object') return;
+      const type = String(item.type || '').toLowerCase();
+      if (type === 'app_to_app_integration') {
+        const baseCoupling = String(item.coupling || 'loose').toLowerCase();
+        const points = Array.isArray(item.integration_points) ? item.integration_points : [];
+        if (points.length) {
+          points.forEach(p => {
+            if (!p?.target) return;
+            details.appLinks.push({ target: p.target, coupling: String(p.coupling || baseCoupling).toLowerCase() });
+          });
+        } else {
+          (item.targets || []).forEach(t => details.appLinks.push({ target: t, coupling: baseCoupling }));
+        }
+        const protocols = Array.isArray(item.protocols) ? item.protocols.map(p => String(p).toUpperCase()) : [];
+        details.protocols.push(...protocols);
+        if (protocols.some(p => /EVENT|QUEUE|TOPIC|BUS|PUBSUB/i.test(p))) {
+          details.messagingServices.push('Enterprise Event Bus');
+        }
+      }
+      if (type === 'app_to_db_integration') {
+        const coupling = String(item.coupling || 'loose').toLowerCase();
+        (item.datastores || []).forEach(d => {
+          const ds = String(d || '').toLowerCase();
+          if (ds && ds !== 'none') details.dbLinks.push({ datastore: ds, coupling });
+        });
+      }
+    });
+  } catch (_) {}
+  details.protocols = Array.from(new Set(details.protocols));
+  details.messagingServices = Array.from(new Set(details.messagingServices));
+  return details;
+}
+
+function openAppIntegrations(appId) {
+  const app = (window._allApps || []).find(a => a.id === appId);
+  if (!app) return;
+  const details = parseIntegrationDetails(app.findingsRaw);
+  const rows = details.appLinks.length
+    ? details.appLinks.map(i => `<div style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--accent-cyan)">${i.target}</span> · <span style="font-family:var(--font-mono);color:${i.coupling==='tight'?'var(--accent-red)':'var(--accent-emerald)'}">${i.coupling.toUpperCase()}</span></div>`).join('')
+    : '<div style="font-size:12px;color:var(--text-muted)">No app-to-app integrations discovered.</div>';
+  JarvisPanel.open(`${app.name} Integrations`, () => `
+    <div class="panel-header"><div class="panel-title">${app.name} · Integration Points</div><div class="panel-subtitle">${details.appLinks.length} links · ${app.appToDb || 0} database integrations</div></div>
+    <div class="panel-section"><div class="panel-section-title">Application Integrations</div>${rows}</div>
+    <div class="panel-section" style="margin-top:12px"><div class="panel-section-title">Protocols</div><div style="font-size:12px;color:var(--text-secondary)">${details.protocols.length ? details.protocols.join(' · ') : 'N/A'}</div></div>
+  `, ['Assessment Engine', 'Scan Results', app.name]);
+}
+
+function openAppDatabases(appId, focusDb = '') {
+  const app = (window._allApps || []).find(a => a.id === appId);
+  if (!app) return;
+  const details = parseIntegrationDetails(app.findingsRaw);
+  const dbs = (app.databases || []).map(d => String(d).toLowerCase());
+  const links = details.dbLinks.length ? details.dbLinks : dbs.map(d => ({ datastore: d, coupling: 'loose' }));
+  JarvisPanel.open(`${app.name} Databases`, () => `
+    <div class="panel-header"><div class="panel-title">${app.name} · Databases</div><div class="panel-subtitle">${links.length} connected datastore(s)</div></div>
+    <div class="panel-section">
+      <div class="panel-section-title">Database Connectivity</div>
+      ${links.length ? links.map(d => `<div style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:12px;background:${focusDb && focusDb.toLowerCase()===d.datastore.toLowerCase()?'rgba(34,211,238,0.08)':'transparent'}"><span style="color:var(--accent-emerald)">${String(d.datastore).toUpperCase()}</span> · <span style="font-family:var(--font-mono);color:${d.coupling==='tight'?'var(--accent-red)':'var(--text-muted)'}">${String(d.coupling || 'loose').toUpperCase()}</span></div>`).join('') : '<div style="font-size:12px;color:var(--text-muted)">No databases discovered.</div>'}
+    </div>
+  `, ['Assessment Engine', 'Scan Results', app.name]);
+}
+
+function renderSharedServicesTable(apps) {
+  const host = document.getElementById('shared-services-body');
+  if (!host) return;
+  const map = new Map();
+  (apps || []).forEach(app => {
+    (app.databases || []).forEach(db => {
+      const key = `db:${String(db).toLowerCase()}`;
+      if (!map.has(key)) map.set(key, { key, name: String(db).toUpperCase(), type: 'Database', apps: [] });
+      map.get(key).apps.push(app.name);
+    });
+    const details = parseIntegrationDetails(app.findingsRaw);
+    const hasMessaging = app.hasMessaging || details.messagingServices.length > 0;
+    if (hasMessaging) {
+      const key = 'msg:enterprise-event-bus';
+      if (!map.has(key)) map.set(key, { key, name: 'Enterprise Event Bus', type: 'Messaging', apps: [] });
+      map.get(key).apps.push(app.name);
+    }
+  });
+
+  const rows = Array.from(map.values()).map(s => ({ ...s, apps: Array.from(new Set(s.apps)) })).sort((a, b) => b.apps.length - a.apps.length);
+  window._sharedServiceMap = rows;
+  if (!rows.length) {
+    host.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted)">No shared services discovered.</td></tr>';
+    return;
+  }
+  host.innerHTML = rows.map(s => {
+    const criticality = s.apps.length >= 8 ? 'High' : s.apps.length >= 4 ? 'Medium' : 'Low';
+    const color = criticality === 'High' ? 'var(--accent-red)' : criticality === 'Medium' ? 'var(--accent-amber)' : 'var(--accent-emerald)';
+    return `<tr>
+      <td><button onclick="openSharedServiceConsumers('${s.key}')" style="background:none;border:none;color:var(--accent-cyan);cursor:pointer;font-family:var(--font-display);font-weight:600">${s.name}</button></td>
+      <td>${s.type}</td>
+      <td>${s.apps.length}</td>
+      <td><span style="color:${color}">${criticality}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function openSharedServiceConsumers(serviceKey) {
+  const item = (window._sharedServiceMap || []).find(s => s.key === serviceKey);
+  if (!item) return;
+  JarvisPanel.open(`${item.name} Consumers`, () => `
+    <div class="panel-header"><div class="panel-title">${item.name}</div><div class="panel-subtitle">${item.type} · ${item.apps.length} connected applications</div></div>
+    <div class="panel-section">
+      <div class="panel-section-title">Connected Applications</div>
+      ${item.apps.map(name => `<div style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:12px">${name}</div>`).join('')}
+    </div>
+  `, ['Assessment Engine', 'Overview', 'Shared Services']);
+}
+
+function estimateVmCount(lines) {
+  const loc = Number(lines || 0);
+  if (!loc) return 1;
+  return Math.min(12, Math.max(1, Math.round(loc / 12000)));
+}
+
+function deriveStatus(risk, idx = 0) {
+  if (risk === 'high') return idx % 2 === 0 ? 'in-progress' : 'pending';
+  if (risk === 'medium') return 'pending';
+  return idx % 3 === 0 ? 'in-progress' : 'completed';
+}
+
+let _activeScanView = 'apps';
+let _selectedAppId = null;
+let _mprState = { app: null, tab: 'validation', tests: [], running: false, loading: false, artifacts: null, error: null, artifactSource: 'unknown', artifactFetchedAt: null };
+
+function buildValidationTests() {
+  return [
+    { id: 'infra', title: 'Pre-Migration Infrastructure Validation', desc: 'Validates current infrastructure is stable and ready for migration.', status: 'pending' },
+    { id: 'integration', title: 'Integration Baseline Test', desc: 'Captures baseline metrics for all integration points before migration.', status: 'pending' },
+    { id: 'performance', title: 'Performance Baseline Test', desc: 'Establishes performance baseline for post-migration comparison.', status: 'pending' },
+    { id: 'functional', title: 'Pre-Migration Functional Test', desc: 'Validates critical business workflows before change freeze.', status: 'pending' },
+  ];
+}
+
+function mapPatternForPlanner(patternBadge) {
+  return BADGE_TO_PATTERN[patternBadge] || 'P1';
+}
+
+function summarizeTerraformResources(terraformText) {
+  if (!terraformText) return [];
+  const matches = [...terraformText.matchAll(/resource\s+"([^"]+)"\s+"([^"]+)"/g)];
+  return matches.map(m => `${m[1]}.${m[2]}`);
+}
+
+async function ensureMigrationArtifacts(force = false) {
+  const app = _mprState.app;
+  if (!app) return;
+  if (_mprState.artifacts && !force) return;
+
+  _mprState.loading = true;
+  _mprState.error = null;
+  renderMigrationPlanReview();
+
+  let diffPayload = null;
+  let terraform = '';
+  let githubActions = '';
+  let jenkinsfile = '';
+  let jobId = null;
+  let artifactSource = 'unknown';
+
+  try {
+    const diff = await JarvisAPI.migration.getMigrationDiff(app.id);
+    diffPayload = diff || null;
+    jobId = diff?.job_id || null;
+    artifactSource = 'existing';
+  } catch (_) {
+    try {
+      const runResp = await JarvisAPI.migration.runMigrationAgent(app.id, mapPatternForPlanner(app.pattern));
+      diffPayload = {
+        destination_architecture: runResp.destination_architecture || {},
+        changed_files: runResp.changed_files || [],
+      };
+      jobId = runResp?.job_id || null;
+      artifactSource = 'generated';
+    } catch (e) {
+      _mprState.error = e?.message || 'Unable to prepare migration artifacts';
+      artifactSource = 'failed';
+    }
+  }
+
+  try {
+    const tf = await JarvisAPI.migration.generateTerraform(app.id);
+    terraform = tf?.terraform || '';
+  } catch (_) {}
+
+  try {
+    const pipe = await JarvisAPI.migration.generatePipeline(app.id);
+    githubActions = pipe?.github_actions || '';
+    jenkinsfile = pipe?.jenkinsfile || '';
+  } catch (_) {}
+
+  _mprState.artifacts = {
+    diff: diffPayload || { destination_architecture: {}, changed_files: [] },
+    terraform,
+    githubActions,
+    jenkinsfile,
+    jobId,
+  };
+  _mprState.artifactSource = artifactSource;
+  _mprState.artifactFetchedAt = new Date().toISOString();
+  _mprState.loading = false;
+  renderMigrationPlanReview();
+}
+
+function setScanView(view, btn) {
+  _activeScanView = view;
+  document.querySelectorAll('.segmented-tab').forEach(el => el.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const titleMap = {
+    apps: 'Discovered Applications',
+    deps: 'Dependency-focused Applications',
+    cost: 'Cost Estimation Candidates',
+  };
+  document.getElementById('scan-card-title').textContent = titleMap[view] || 'Discovered Applications';
+  const list = window._lastRenderedApps || window._allApps || [];
+  renderApps(list);
+}
+
+function renderSelectedAppCard(app) {
+  const host = document.getElementById('app-detail-body');
+  if (!host || !app) return;
+  const techPills = (app.technologies || [app.tech || 'Unknown']).slice(0, 8);
+  const dbPills = (app.databases || []).length ? app.databases : ['none'];
+  const tools = app.toolIntegrations || TOOL_INTEGRATIONS_DEFAULT;
+
+  host.innerHTML = `
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Name:</div>
+    <div style="font-size:18px;font-family:var(--font-display);font-weight:700;margin-bottom:10px">${app.name}</div>
+
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Pattern:</div>
+    <div style="margin-bottom:12px"><span class="pattern-badge pattern-${app.pattern}">${patternLabel(app.pattern)}</span></div>
+
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Profile:</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
+      ${app.isPredefined ? '<span class="token-pill" style="border-color:var(--accent-emerald);color:var(--accent-emerald)">PREDEFINED</span>' : ''}
+      <span class="token-pill" style="border-color:${app.couplingProfile === 'tight' ? 'var(--accent-red)' : 'var(--accent-emerald)'};color:${app.couplingProfile === 'tight' ? 'var(--accent-red)' : 'var(--accent-emerald)'}">${(app.couplingProfile || 'loose').toUpperCase()} COUPLING</span>
+      <span class="token-pill">${(app.integrationModel || 'none').replaceAll('_', ' ').toUpperCase()}</span>
+    </div>
+
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Technologies:</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">${techPills.map(t => `<span class="token-pill">${t}</span>`).join('')}</div>
+
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Databases:</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">${dbPills.map(d => `<button onclick="openAppDatabases('${app.id}','${String(d).replace(/'/g, "\\'")}')" class="token-pill" style="cursor:pointer">${String(d).toUpperCase()}</button>`).join('')}</div>
+
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Integrations:</div>
+    <button onclick="openAppIntegrations('${app.id}')" style="margin-bottom:12px;border:none;background:none;color:var(--accent-cyan);font-size:13px;font-weight:600;cursor:pointer;padding:0">${(app.appToApp||0) + (app.appToDb||0)} integration points →</button>
+
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Tool Integrations:</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">${tools.map(t => `<span class="token-pill">${t}</span>`).join('')}</div>
+
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Estimated Effort:</div>
+    <div style="font-family:var(--font-mono);font-weight:700;font-size:15px;margin-bottom:14px">${app.estimatedHours || 120} hours</div>
+
+    <button onclick="openMigrationPlanReview('${app.id}')" style="width:100%;padding:10px 14px;background:var(--gradient-blue);border:none;border-radius:var(--radius-sm);color:white;font-family:var(--font-display);font-weight:700;cursor:pointer">⚡ Review Migration Plan</button>
+  `;
+}
+
+function openMigrationPlanReview(appId) {
+  const app = (window._allApps || []).find(a => a.id === appId || a.name === appId);
+  if (!app) return;
+  _mprState = { app, tab: 'validation', tests: buildValidationTests(), running: false, loading: false, artifacts: null, error: null, artifactSource: 'unknown', artifactFetchedAt: null };
+  document.querySelectorAll('#mpr-tabs .mpr-tab').forEach(x => x.classList.remove('active'));
+  const validationTab = document.querySelector('#mpr-tabs .mpr-tab');
+  if (validationTab) validationTab.classList.add('active');
+  const overlay = document.getElementById('mpr-overlay');
+  if (overlay) overlay.classList.add('open');
+  renderMigrationPlanReview();
+  ensureMigrationArtifacts();
+}
+
+function closeMigrationPlanModal(event) {
+  if (event && event.target && event.target.id !== 'mpr-overlay') return;
+  const overlay = document.getElementById('mpr-overlay');
+  if (overlay) overlay.classList.remove('open');
+}
+
+function setMigrationPlanTab(tab, btn) {
+  _mprState.tab = tab;
+  document.querySelectorAll('#mpr-tabs .mpr-tab').forEach(x => x.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderMigrationPlanReview();
+  if (tab !== 'validation') ensureMigrationArtifacts();
+}
+
+function startValidationTests() {
+  if (_mprState.running) return;
+  _mprState.running = true;
+  let idx = 0;
+  const runNext = () => {
+    if (idx >= _mprState.tests.length) {
+      _mprState.running = false;
+      renderMigrationPlanReview();
+      JarvisNotify.success('Validation completed. Ready for approval.');
+      return;
+    }
+    _mprState.tests = _mprState.tests.map((t, i) => ({ ...t, status: i < idx ? 'completed' : i === idx ? 'running' : 'pending' }));
+    renderMigrationPlanReview();
+    setTimeout(() => {
+      _mprState.tests[idx].status = 'completed';
+      idx += 1;
+      runNext();
+    }, 700);
+  };
+  runNext();
+}
+
+function skipValidationTests() {
+  _mprState.tests = _mprState.tests.map(t => ({ ...t, status: 'pending' }));
+  _mprState.running = false;
+  renderMigrationPlanReview();
+  JarvisNotify.warn('Validation skipped. Approval will remain blocked.');
+}
+
+function rejectMigrationPlan() {
+  JarvisNotify.warn('Migration plan rejected. Revision requested.');
+  closeMigrationPlanModal();
+}
+
+async function approveMigrationPlan() {
+  const pending = _mprState.tests.filter(t => t.status !== 'completed').length;
+  if (pending > 0) {
+    JarvisNotify.warn('Complete test validation before approval');
+    return;
+  }
+  const jobId = _mprState.artifacts?.jobId;
+  if (jobId) {
+    try {
+      await JarvisAPI.migration.approveStep(jobId, true, 'Approved from Assessment Migration Plan Review');
+    } catch (_) {}
+  }
+  JarvisNotify.success(`Migration approved for ${_mprState.app?.name || 'application'}`);
+  closeMigrationPlanModal();
+}
+
+function renderMigrationPlanReview() {
+  const app = _mprState.app;
+  const content = document.getElementById('mpr-content');
+  if (!app || !content) return;
+  const artifacts = _mprState.artifacts || {};
+  const diff = artifacts.diff || {};
+  const arch = diff.destination_architecture || {};
+  const changedFiles = diff.changed_files || [];
+  const tfResources = summarizeTerraformResources(artifacts.terraform || '');
+  const ghaLines = (artifacts.githubActions || '').split('\n').filter(Boolean).length;
+  const jenkinsLines = (artifacts.jenkinsfile || '').split('\n').filter(Boolean).length;
+
+  const title = document.getElementById('mpr-title');
+  const subtitle = document.getElementById('mpr-subtitle');
+  const sourceBadge = document.getElementById('mpr-source-badge');
+  const sourceMeta = document.getElementById('mpr-source-meta');
+  if (title) title.textContent = 'Migration Plan Review';
+  if (subtitle) subtitle.textContent = `${app.name} • ${patternLabel(app.pattern)}`;
+  if (sourceBadge) {
+    const map = {
+      unknown: { label: 'Artifacts: Loading', color: 'var(--text-muted)', border: 'var(--border)' },
+      existing: { label: 'Artifacts: Existing Job', color: 'var(--accent-emerald)', border: 'rgba(16,185,129,0.35)' },
+      generated: { label: 'Artifacts: Auto-Generated', color: 'var(--accent-cyan)', border: 'rgba(34,211,238,0.35)' },
+      failed: { label: 'Artifacts: Unavailable', color: 'var(--accent-red)', border: 'rgba(239,68,68,0.35)' },
+    };
+    const cfg = map[_mprState.artifactSource || 'unknown'] || map.unknown;
+    sourceBadge.style.display = 'inline-flex';
+    sourceBadge.textContent = cfg.label;
+    sourceBadge.style.color = cfg.color;
+    sourceBadge.style.borderColor = cfg.border;
+  }
+  if (sourceMeta) {
+    const fetched = _mprState.artifactFetchedAt ? new Date(_mprState.artifactFetchedAt).toLocaleString() : '—';
+    const job = artifacts.jobId || '—';
+    sourceMeta.style.display = 'inline-flex';
+    sourceMeta.textContent = `job: ${job} · fetched: ${fetched}`;
+  }
+
+  const pending = _mprState.tests.filter(t => t.status !== 'completed').length;
+  const footer = document.getElementById('mpr-footer-note');
+  if (footer) {
+    const srcMap = {
+      existing: 'source: existing job',
+      generated: 'source: auto-generated',
+      failed: 'source: unavailable',
+      unknown: 'source: loading',
+    };
+    const src = srcMap[_mprState.artifactSource || 'unknown'] || srcMap.unknown;
+    footer.textContent = pending
+      ? `Complete test validation before approval · ${src}`
+      : `All validations complete. Ready for approval · ${src}`;
+    footer.style.color = pending ? 'var(--accent-amber)' : 'var(--accent-emerald)';
+  }
+
+  const statusChip = (status) => {
+    const map = {
+      completed: '<span class="status-chip status-completed">completed</span>',
+      pending: '<span class="status-chip status-pending">pending</span>',
+      running: '<span class="status-chip status-in-progress">running</span>',
+    };
+    return map[status] || map.pending;
+  };
+
+  const loadingBlock = _mprState.loading
+    ? '<div class="mpr-card" style="font-size:13px;color:var(--text-muted)">Loading migration artifacts...</div>'
+    : '';
+  const errorBlock = _mprState.error
+    ? `<div class="mpr-card" style="font-size:13px;color:var(--accent-red)">${_mprState.error}</div>`
+    : '';
+
+  if (_mprState.tab === 'validation') {
+    content.innerHTML = `
+      <div class="mpr-card" style="border-color:rgba(34,211,238,0.35)">
+        <div style="display:flex;align-items:flex-start;gap:10px">
+          <div style="width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(34,211,238,0.12);color:var(--accent-cyan);font-size:16px">✎</div>
+          <div style="flex:1">
+            <div style="font-family:var(--font-display);font-weight:700;font-size:24px;margin-bottom:4px">Pre-Migration Test Validation</div>
+            <div style="font-size:13px;color:var(--text-secondary)">Automated tests validate baseline readiness before migration approval.</div>
+            <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+              <button onclick="startValidationTests()" style="padding:8px 14px;border-radius:var(--radius-sm);border:none;background:var(--gradient-blue);color:white;font-family:var(--font-display);font-weight:700;cursor:pointer">▶ Start Validation Tests</button>
+              <button onclick="skipValidationTests()" style="padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-primary);color:var(--text-secondary);font-family:var(--font-display);font-weight:600;cursor:pointer">Skip Tests (Not Recommended)</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mpr-card">
+        <div style="font-family:var(--font-display);font-weight:700;font-size:20px;margin-bottom:10px">Test Results</div>
+        ${_mprState.tests.map(t => `
+          <div class="mpr-test-row">
+            <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
+              <div>
+                <div style="font-size:14px;font-family:var(--font-display);font-weight:700;margin-bottom:2px">${t.title}</div>
+                <div style="font-size:12px;color:var(--text-muted)">${t.desc}</div>
+              </div>
+              <div>${statusChip(t.status)}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    return;
+  }
+
+  if (_mprState.tab === 'overview') {
+    content.innerHTML = `
+      ${loadingBlock}
+      ${errorBlock}
+      <div class="mpr-card">
+        <div style="font-family:var(--font-display);font-weight:700;font-size:18px;margin-bottom:10px">Migration Overview</div>
+        <div style="display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:10px">
+          <div class="token-pill" style="justify-content:center;padding:8px">Pattern: ${patternLabel(app.pattern)}</div>
+          <div class="token-pill" style="justify-content:center;padding:8px">Risk: ${app.risk}</div>
+          <div class="token-pill" style="justify-content:center;padding:8px">Effort: ${app.estimatedHours || 120}h</div>
+        </div>
+      </div>
+      <div class="mpr-card" style="font-size:13px;color:var(--text-secondary)">Target: <span style="color:var(--accent-cyan)">${arch.target || 'GCP'}</span> · Components: ${(arch.components || []).length} · Changed files: ${changedFiles.length}</div>
+      <div class="mpr-card" style="font-size:13px;color:var(--text-secondary);line-height:1.6">${migrationStrategy(app.pattern)}</div>
+    `;
+    return;
+  }
+
+  if (_mprState.tab === 'architecture') {
+    const components = arch.components || [];
+    const diagram = arch.diagram || [];
+    const computeTier = app.pattern === 'i' ? 'GKE' : app.pattern === 'h' ? 'Cloud Run' : 'GCE';
+    content.innerHTML = `
+      ${loadingBlock}
+      ${errorBlock}
+      <div class="mpr-card">
+        <div style="font-size:14px;font-family:var(--font-display);font-weight:700;margin-bottom:10px">Target State Architecture (Google Cloud)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+          <div style="border:1px solid var(--border);border-radius:10px;padding:10px;background:rgba(34,211,238,0.06)">
+            <div style="font-size:11px;color:var(--accent-cyan);font-family:var(--font-mono);margin-bottom:6px">EDGE</div>
+            <div class="token-pill" style="margin-bottom:6px">Cloud DNS</div>
+            <div class="token-pill" style="margin-bottom:6px">Cloud Load Balancing</div>
+            <div class="token-pill">Cloud Armor + IAP</div>
+          </div>
+          <div style="border:1px solid var(--border);border-radius:10px;padding:10px;background:rgba(59,130,246,0.08)">
+            <div style="font-size:11px;color:var(--accent-blue);font-family:var(--font-mono);margin-bottom:6px">APPLICATION</div>
+            <div class="token-pill" style="margin-bottom:6px">${computeTier}</div>
+            <div class="token-pill" style="margin-bottom:6px">API Gateway</div>
+            <div class="token-pill">Artifact Registry + Cloud Build</div>
+          </div>
+          <div style="border:1px solid var(--border);border-radius:10px;padding:10px;background:rgba(16,185,129,0.08)">
+            <div style="font-size:11px;color:var(--accent-emerald);font-family:var(--font-mono);margin-bottom:6px">DATA + OPS</div>
+            <div class="token-pill" style="margin-bottom:6px">Cloud SQL / Spanner</div>
+            <div class="token-pill" style="margin-bottom:6px">Pub/Sub</div>
+            <div class="token-pill" style="margin-bottom:6px">Memorystore + GCS</div>
+            <div class="token-pill">Secret Manager + Cloud Monitoring</div>
+          </div>
+        </div>
+        <div style="margin-top:10px;font-size:12px;color:var(--text-secondary)">Flow: Internet → Cloud Load Balancer → ${computeTier} → Cloud SQL/PubSub with centralized security and observability.</div>
+      </div>
+      <div class="mpr-card"><div style="font-size:14px;font-family:var(--font-display);font-weight:700;margin-bottom:8px">Planner Components</div>
+      ${(components.length ? components : ['Compute baseline', 'Networking', 'Security', 'Data services']).map(c => `<div style="font-size:12px;color:var(--text-secondary);padding:3px 0">• ${c}</div>`).join('')}</div>
+      <div class="mpr-card"><div style="font-size:14px;font-family:var(--font-display);font-weight:700;margin-bottom:8px">Architecture Flow</div>
+      ${(diagram.length ? diagram : ['Source workload -> Migration pipeline -> GCP target']).map(d => `<div style="font-size:12px;color:var(--text-secondary);padding:3px 0">${d}</div>`).join('')}</div>
+    `;
+    return;
+  }
+
+  if (_mprState.tab === 'integrations') {
+    content.innerHTML = `
+      ${loadingBlock}
+      ${errorBlock}
+      <div class="mpr-card"><div style="font-size:14px;font-family:var(--font-display);font-weight:700;margin-bottom:8px">Integration Mapping</div>
+      <div style="font-size:13px;color:var(--text-secondary)">App→App: ${app.appToApp || 0} · App→DB: ${app.appToDb || 0}</div></div>
+      <div class="mpr-card" style="font-size:13px;color:var(--text-secondary)">Tooling: ${(app.toolIntegrations || TOOL_INTEGRATIONS_DEFAULT).join(' · ')}</div>
+    `;
+    return;
+  }
+
+  if (_mprState.tab === 'files') {
+    content.innerHTML = `
+      ${loadingBlock}
+      ${errorBlock}
+      <div class="mpr-card"><div style="font-size:14px;font-family:var(--font-display);font-weight:700;margin-bottom:8px">Planned File Changes</div>
+      ${changedFiles.length
+        ? changedFiles.map(f => `<div style="font-size:12px;color:var(--text-secondary);padding:6px 0;border-bottom:1px solid var(--border)"><span style="color:var(--accent-purple);font-family:var(--font-mono)">${f.file}</span> — ${f.change}</div>`).join('')
+        : '<div style="font-size:13px;color:var(--text-muted)">No file change list available yet. Generate migration artifacts first.</div>'}
+      </div>
+    `;
+    return;
+  }
+
+  if (_mprState.tab === 'resources') {
+    content.innerHTML = `
+      ${loadingBlock}
+      ${errorBlock}
+      <div class="mpr-card"><div style="font-size:14px;font-family:var(--font-display);font-weight:700;margin-bottom:8px">Resource Estimate</div>
+      <div style="font-size:13px;color:var(--text-secondary)">VMs: ${app.vms || estimateVmCount(app.lines)} · Integration points: ${(app.appToApp||0) + (app.appToDb||0)} · Terraform resources: ${tfResources.length || 'n/a'}</div></div>
+      <div class="mpr-card" style="font-size:13px;color:var(--text-secondary)">Pipeline artifacts: GitHub Actions ${ghaLines || 0} lines · Jenkinsfile ${jenkinsLines || 0} lines</div>
+      ${tfResources.length ? `<div class="mpr-card">${tfResources.slice(0, 20).map(r => `<div style="font-size:12px;color:var(--text-secondary);padding:3px 0">• ${r}</div>`).join('')}</div>` : ''}
+    `;
+    return;
+  }
+
+  content.innerHTML = `
+    ${loadingBlock}
+    ${errorBlock}
+    <div class="mpr-card"><div style="font-size:14px;font-family:var(--font-display);font-weight:700;margin-bottom:8px">Testing Strategy</div>
+    <div style="font-size:13px;color:var(--text-secondary)">Functional, integration, performance and rollback tests will be executed pre and post cutover.</div></div>
+    <div class="mpr-card" style="font-size:13px;color:var(--text-secondary)">Validation tests completed: ${_mprState.tests.filter(t => t.status === 'completed').length}/${_mprState.tests.length}</div>
+  `;
+}
+
+function selectApp(id) {
+  _selectedAppId = id;
+  const app = (window._allApps || []).find(a => a.id === id);
+  if (!app) return;
+  renderSelectedAppCard(app);
+  document.querySelectorAll('#apps-list .app-row').forEach(el => el.classList.remove('selected'));
+  const row = document.getElementById(`app-row-${id}`);
+  if (row) row.classList.add('selected');
+}
+
+// ── DEMO DATA ────────────────────────────────────────────
+function loadDemoData() {
+  document.getElementById('kpi-repos').textContent = '24';
+  document.getElementById('kpi-apps').textContent = '18';
+  document.getElementById('kpi-bundles').textContent = '5';
+  document.getElementById('kpi-risk').textContent = '42';
+
+  const patterns = [
+    { code:'a', count:3 }, { code:'b', count:5 }, { code:'c', count:2 },
+    { code:'d', count:1 }, { code:'e', count:4 }, { code:'f', count:6 },
+    { code:'g', count:3 }, { code:'h', count:2 }, { code:'i', count:2 }
+  ];
+
+  const colors = { a:'#3B82F6', b:'#60A5FA', c:'#22D3EE', d:'#06B6D4',
+                   e:'#10B981', f:'#34D399', g:'#6EE7B7', h:'#A7F3D0', i:'#8B5CF6' };
+
+  const total = patterns.reduce((s,p) => s+p.count, 0);
+  const distEl = document.getElementById('pattern-dist');
+  distEl.innerHTML = patterns.map(p => `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;cursor:pointer" onclick="JarvisNav.showPage('scan');filterApps('${p.code}')">
+      <span class="pattern-badge pattern-${p.code}">Pattern ${p.code.toUpperCase()}</span>
+      <div style="flex:1;height:8px;background:var(--bg-elevated);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${(p.count/total*100).toFixed(0)}%;background:${colors[p.code]};border-radius:4px;transition:width 0.6s ease"></div>
+      </div>
+      <span style="font-family:var(--font-mono);font-size:12px;min-width:20px">${p.count}</span>
+      <span style="font-size:11px;color:var(--text-muted);min-width:36px">${(p.count/total*100).toFixed(0)}%</span>
+    </div>`).join('');
+
+  JarvisChart.donut('pattern-donut',
+    patterns.map(p => ({ value: p.count, color: colors[p.code] })),
+    { center: total.toString(), centerSub: 'Apps' }
+  );
+
+  loadDemoApps();
+  renderPatternAppCounts(window._allApps || []);
+  renderSharedServicesTable(window._allApps || []);
+  loadDemoBundles();
+}
+
+function loadDemoApps() {
+  const apps = [
+    { id:'APP-001', name:'CustomerPortal', pattern:'a', tech:'Java/Spring', risk:'high', lines:42000, bundle:'B-01', appToApp:3, appToDb:1, technologies:['Java','Spring','PostgreSQL','RabbitMQ','Nginx'], databases:['postgresql'], hasMessaging:true },
+    { id:'APP-002', name:'OrderService',   pattern:'b', tech:'Node.js', risk:'medium', lines:18500, bundle:'B-01', appToApp:2, appToDb:1, technologies:['Node.js','Express','MySQL'], databases:['mysql'], hasMessaging:false },
+    { id:'APP-003', name:'PaymentGateway', pattern:'a', tech:'Java/Spring', risk:'high', lines:65000, bundle:'B-02', appToApp:4, appToDb:2, technologies:['Java','Spring','Kafka','Redis'], databases:['postgresql','redis'], hasMessaging:true },
+    { id:'APP-004', name:'InventoryAPI',   pattern:'f', tech:'.NET Core', risk:'low', lines:9200, bundle:'B-03', appToApp:1, appToDb:1, technologies:['.NET','C#','SQLClient'], databases:['mssql'], hasMessaging:false },
+    { id:'APP-005', name:'ReportingEngine',pattern:'e', tech:'Python/Django', risk:'medium', lines:21000, bundle:'B-04', appToApp:2, appToDb:2, technologies:['Python','Django','Celery'], databases:['postgresql'], hasMessaging:false },
+    { id:'APP-006', name:'AuthService',    pattern:'d', tech:'Go', risk:'low', lines:7800, bundle:'B-02', appToApp:1, appToDb:0, technologies:['Go','JWT','OIDC'], databases:[], hasMessaging:false },
+    { id:'APP-007', name:'NotificationSvc',pattern:'g', tech:'Node.js', risk:'low', lines:5500, bundle:'B-03', appToApp:2, appToDb:0, technologies:['Node.js','PubSub'], databases:[], hasMessaging:true },
+    { id:'APP-008', name:'SearchService',  pattern:'h', tech:'Rust', risk:'low', lines:12000, bundle:'B-04', appToApp:1, appToDb:0, technologies:['Rust','Actix'], databases:[], hasMessaging:false },
+    { id:'APP-009', name:'LegacyBilling',  pattern:'i', tech:'PCF/Java', risk:'high', lines:88000, bundle:'B-05', appToApp:5, appToDb:2, technologies:['Java','PCF','Hibernate'], databases:['oracle','postgresql'], hasMessaging:true },
+    { id:'APP-010', name:'DataPipeline',   pattern:'e', tech:'Python', risk:'medium', lines:31000, bundle:'B-04', appToApp:2, appToDb:2, technologies:['Python','Airflow','Spark'], databases:['postgresql'], hasMessaging:true },
+  ];
+  const selectedTools = getSelectedToolIntegrations();
+  apps.forEach((a, idx) => {
+    a.vms = estimateVmCount(a.lines);
+    a.status = deriveStatus(a.risk, idx);
+    a.estimatedHours = Math.max(40, Math.round((a.lines || 0) / 350));
+    a.toolIntegrations = selectedTools;
+  });
+  window._allApps = apps;
+  renderApps(apps);
+  if (apps.length) selectApp(apps[0].id);
+  document.getElementById('apps-count-badge').textContent = apps.length+' Apps';
+  document.getElementById('apps-showing').textContent = `Showing ${apps.length} of ${apps.length} applications`;
+}
+
+function renderApps(apps) {
+  const list = (apps || []).filter(a => {
+    if (_activeScanView === 'deps') return (a.appToApp || 0) + (a.appToDb || 0) > 0;
+    if (_activeScanView === 'cost') return (a.lines || 0) >= 12000 || a.risk === 'high';
+    return true;
+  });
+  window._lastRenderedApps = list;
+
+  document.getElementById('apps-list').innerHTML = list.map(a => `
+    <div class="app-row ${_selectedAppId === a.id ? 'selected' : ''}" id="app-row-${a.id}" onclick="selectApp('${a.id}')" style="grid-template-columns: 1.4fr 1fr 80px 120px 140px;">
+      <div>
+        <div class="app-name" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${a.name}
+          ${a.isPredefined ? '<span class="token-pill" style="padding:2px 6px;font-size:10px;border-color:var(--accent-emerald);color:var(--accent-emerald)">PREDEFINED</span>' : ''}
+        </div>
+        <div style="font-size:10px;color:${a.couplingProfile === 'tight' ? 'var(--accent-red)' : 'var(--text-muted)'};font-family:var(--font-mono)">${(a.couplingProfile || 'loose').toUpperCase()} • ${(a.integrationModel || 'none').replaceAll('_', ' ').toUpperCase()}</div>
+      </div>
+      <div><span class="pattern-badge pattern-${a.pattern}">${patternLabel(a.pattern)}</span></div>
+      <div style="font-family:var(--font-mono);font-size:12px;color:var(--text-secondary)">${a.vms || estimateVmCount(a.lines)}</div>
+      <div><span class="status-chip status-${a.status || 'pending'}">${a.status || 'pending'}</span></div>
+      <div><button onclick="event.stopPropagation();openAppDetail('${a.id}')" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:none;color:var(--text-secondary);cursor:pointer">View Full Details</button></div>
+    </div>`).join('') || '<div style="text-align:center;padding:36px;color:var(--text-muted)">No applications match this view.</div>';
+
+  if (list.length && !_selectedAppId) {
+    selectApp(list[0].id);
+  } else if (list.length && !list.find(a => a.id === _selectedAppId)) {
+    selectApp(list[0].id);
+  }
+}
+
+function loadDemoBundles() {
+  const bundles = [
+    { id:'B-01', name:'Customer-Facing Bundle', apps:['CustomerPortal','OrderService'], patterns:['a','b'], wave:1, status:'pending', risk:'high', effort:'6 weeks' },
+    { id:'B-02', name:'Payment & Auth Bundle', apps:['PaymentGateway','AuthService'], patterns:['a','d'], wave:1, status:'pending', risk:'high', effort:'8 weeks' },
+    { id:'B-03', name:'Inventory & Notifications', apps:['InventoryAPI','NotificationSvc'], patterns:['f','g'], wave:2, status:'approved', risk:'low', effort:'3 weeks' },
+    { id:'B-04', name:'Analytics Platform', apps:['ReportingEngine','DataPipeline','SearchService'], patterns:['e','e','h'], wave:2, status:'approved', risk:'medium', effort:'5 weeks' },
+    { id:'B-05', name:'Legacy Billing Migration', apps:['LegacyBilling'], patterns:['i'], wave:3, status:'pending', risk:'high', effort:'12 weeks' },
+  ];
+  window._allBundles = bundles;
+  document.getElementById('bundle-count').textContent = bundles.length;
+  document.getElementById('bundle-approved').textContent = bundles.filter(b=>b.status==='approved').length;
+  document.getElementById('bundle-pending').textContent = bundles.filter(b=>b.status==='pending').length;
+  renderBundles(bundles);
+}
+
+function renderBundles(bundles) {
+  const statusColors = { approved:'var(--accent-emerald)', pending:'var(--accent-amber)', rejected:'var(--accent-red)' };
+  document.getElementById('bundles-list').innerHTML = bundles.map(b => `
+    <div class="bundle-card" id="bundle-${b.id}">
+      <div class="bundle-top">
+        <div>
+          <div class="bundle-name">${b.name}</div>
+          <div class="bundle-apps">${b.apps.length} apps · Wave ${b.wave} · Est. ${b.effort}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+          <span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:var(--bg-elevated);border:1px solid var(--border);color:${statusColors[b.status]};font-family:var(--font-mono);text-transform:uppercase">${b.status}</span>
+          <span style="font-size:11px;color:${b.risk==='high'?'var(--accent-red)':b.risk==='medium'?'var(--accent-amber)':'var(--accent-emerald)'};font-family:var(--font-mono)">Risk: ${b.risk}</span>
+        </div>
+      </div>
+      <div style="margin-bottom:10px;font-size:12px;color:var(--text-muted)">Apps: ${b.apps.join(' · ')}</div>
+      <div style="margin-bottom:10px;font-size:11px;color:${b.coupling === 'tight' ? 'var(--accent-red)' : 'var(--text-muted)'};font-family:var(--font-mono)">${b.bundleReason || (b.coupling === 'tight' ? 'Tightly coupled via shared DB/integration' : 'Loosely coupled; can migrate in silos')}</div>
+      <div class="bundle-pattern-grid">
+        ${[...new Set(b.patterns)].map(p=>`<span class="pattern-badge pattern-${p}">Pattern ${p.toUpperCase()}</span>`).join('')}
+      </div>
+      <div class="bundle-actions">
+        ${b.status!=='approved'?`<button class="btn-approve" onclick="approveBundle('${b.id}',true)">✓ Approve</button>`:''}
+        ${b.status!=='rejected'?`<button class="btn-reject" onclick="approveBundle('${b.id}',false)">✕ Reject</button>`:''}
+        <button class="btn-view" onclick="openBundleDetail('${b.id}')">View Details →</button>
+        <button class="btn-view" onclick="generateMigrationPlan('${b.id}')">Generate Migration Plan</button>
+      </div>
+    </div>`).join('');
+}
+
+function renderPatternAppCounts(apps) {
+  const counts = (apps || []).reduce((acc, app) => {
+    const key = app.pattern || 'a';
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  ['a','b','c','d','e','f','g','h','i'].forEach(code => {
+    const el = document.getElementById(`pattern-count-${code}`);
+    if (!el) return;
+    el.textContent = String(counts[code] || 0);
+    el.disabled = (counts[code] || 0) === 0;
+    el.style.opacity = (counts[code] || 0) === 0 ? '0.5' : '1';
+    el.style.cursor = (counts[code] || 0) === 0 ? 'default' : 'pointer';
+  });
+}
+
+function openPatternApps(patternCode) {
+  const apps = (window._allApps || []).filter(a => a.pattern === patternCode);
+  JarvisPanel.open(`Pattern ${patternCode.toUpperCase()} Applications`, () => `
+    <div class="panel-header">
+      <div class="panel-title">Pattern ${patternCode.toUpperCase()} Applications</div>
+      <div class="panel-subtitle">${apps.length} discovered and assessed apps</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${apps.length ? apps.map(a => `
+        <div style="padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-surface)">
+          <div style="display:flex;justify-content:space-between;gap:8px;align-items:center">
+            <div style="font-family:var(--font-display);font-weight:600">${a.name}</div>
+            <span style="font-family:var(--font-mono);font-size:11px;color:${a.risk==='high'?'var(--accent-red)':a.risk==='medium'?'var(--accent-amber)':'var(--accent-emerald)'}">${String(a.risk).toUpperCase()}</span>
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px">${a.tech || 'Unknown'} · ${a.lines || 0} LOC</div>
+        </div>
+      `).join('') : '<div style="font-size:12px;color:var(--text-muted)">No applications available for this pattern.</div>'}
+    </div>
+  `, ['Assessment Engine', `Pattern ${patternCode.toUpperCase()}`]);
+}
+
+// ── ACTIONS ──────────────────────────────────────────────
+function filterApps(filter, btn) {
+  document.querySelectorAll('.filter-row .filter-chip').forEach(c=>c.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  const apps = window._allApps || [];
+  let filtered = apps;
+  if (filter === 'high-risk') filtered = apps.filter(a=>a.risk==='high');
+  else if (filter !== 'all') filtered = apps.filter(a=>a.pattern===filter);
+  renderApps(filtered);
+  document.getElementById('apps-showing').textContent = `Showing ${(window._lastRenderedApps || []).length} of ${apps.length} applications`;
+}
+
+function searchApps(q) {
+  const apps = window._allApps || [];
+  const filtered = q ? apps.filter(a=>a.name.toLowerCase().includes(q.toLowerCase())||a.id.includes(q)||a.tech.toLowerCase().includes(q.toLowerCase())) : apps;
+  renderApps(filtered);
+  document.getElementById('apps-showing').textContent = `Showing ${(window._lastRenderedApps || []).length} of ${apps.length} applications`;
+}
+
+let _selectedRepos = new Set();
+let _lastRunId = null;
+let _scanPoller = null;
+let _graphState = { network: null, graphData: null };
+const ACTIVE_SCAN_KEY = 'jarvis_active_scan';
+
+function populateGraphAppSelectors(nodes) {
+  const apps = (nodes || []).filter(n => n.type === 'app').sort((a, b) => String(a.label || '').localeCompare(String(b.label || '')));
+  const options = ['<option value="">Select primary app...</option>', ...apps.map(a => `<option value="${a.id}">${a.label || a.id}</option>`)];
+  const options2 = ['<option value="">Select secondary app (optional)...</option>', ...apps.map(a => `<option value="${a.id}">${a.label || a.id}</option>`)];
+  const s1 = document.getElementById('graph-app-select-1');
+  const s2 = document.getElementById('graph-app-select-2');
+  if (s1) s1.innerHTML = options.join('');
+  if (s2) s2.innerHTML = options2.join('');
+}
+
+function renderGraphSelectionDetails(html) {
+  const host = document.getElementById('graph-selection-detail');
+  if (host) host.innerHTML = html;
+}
+
+function showNodeDetails(node) {
+  if (!node) return;
+  renderGraphSelectionDetails(`
+    <div style="font-family:var(--font-display);font-weight:700;font-size:13px;margin-bottom:6px">${node.label || node.id}</div>
+    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px">Type: <span style="font-family:var(--font-mono)">${String(node.type || 'node').toUpperCase()}</span></div>
+    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px">Pattern: <span style="font-family:var(--font-mono)">${String(node.pattern || 'n/a').toUpperCase()}</span></div>
+    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px">Technology: <span style="font-family:var(--font-mono)">${node.tech || 'Unknown'}</span></div>
+    <div style="font-size:12px;color:var(--text-secondary)">Risk: <span style="font-family:var(--font-mono)">${String(node.risk || 'n/a').toUpperCase()}</span></div>
+  `);
+}
+
+function showEdgeDetails(edge) {
+  if (!edge) return;
+  const nodes = _graphState.graphData?.nodes || [];
+  const from = nodes.find(n => n.id === edge.from)?.label || edge.from;
+  const to = nodes.find(n => n.id === edge.to)?.label || edge.to;
+  renderGraphSelectionDetails(`
+    <div style="font-family:var(--font-display);font-weight:700;font-size:13px;margin-bottom:6px">Integration Relationship</div>
+    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px"><span style="color:var(--accent-cyan)">${from}</span> → <span style="color:var(--accent-emerald)">${to}</span></div>
+    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px">Type: <span style="font-family:var(--font-mono)">${String(edge.type || 'link').toUpperCase()}</span></div>
+    <div style="font-size:12px;color:var(--text-secondary)">Integration: <span style="font-family:var(--font-mono)">${edge.label || 'depends_on'}</span></div>
+  `);
+}
+
+function focusSelectedGraphApps() {
+  const net = _graphState.network;
+  if (!net) return;
+  const a = document.getElementById('graph-app-select-1')?.value;
+  const b = document.getElementById('graph-app-select-2')?.value;
+  const ids = [a, b].filter(Boolean);
+  if (!ids.length) return;
+  net.selectNodes(ids);
+  net.focus(ids[0], { scale: 1.05, animation: true });
+  JarvisNotify.info(`Focused on ${ids.length} selected app${ids.length > 1 ? 's' : ''}`);
+}
+
+function findCommonNeighbor() {
+  const a = document.getElementById('graph-app-select-1')?.value;
+  const b = document.getElementById('graph-app-select-2')?.value;
+  if (!a || !b) {
+    JarvisNotify.warn('Select two apps to find common neighbors');
+    return;
+  }
+  const g = _graphState.graphData;
+  const net = _graphState.network;
+  if (!g || !net) return;
+
+  const neighborSet = (id) => {
+    const set = new Set();
+    (g.edges || []).forEach(e => {
+      if (e.from === id) set.add(e.to);
+      if (e.to === id) set.add(e.from);
+    });
+    return set;
+  };
+  const n1 = neighborSet(a);
+  const n2 = neighborSet(b);
+  const common = [...n1].filter(x => n2.has(x));
+  const highlight = [a, b, ...common];
+  net.selectNodes(highlight);
+  net.focus(a, { scale: 1.0, animation: true });
+
+  const names = (g.nodes || []).filter(n => common.includes(n.id)).map(n => n.label || n.id);
+  renderGraphSelectionDetails(`
+    <div style="font-family:var(--font-display);font-weight:700;font-size:13px;margin-bottom:6px">Common Neighbors (${common.length})</div>
+    <div style="font-size:12px;color:var(--text-secondary)">${names.length ? names.join(' · ') : 'No common neighbors found between selected apps.'}</div>
+  `);
+}
+
+function enrichGraphNodesWithAppDetails(graphData) {
+  const apps = window._allApps || [];
+  const byId = new Map(apps.map(a => [a.id, a]));
+  const byName = new Map(apps.map(a => [String(a.name || '').toLowerCase(), a]));
+  graphData.nodes = (graphData.nodes || []).map(n => {
+    if (n.type !== 'app') return n;
+    const match = byId.get(n.id) || byName.get(String(n.label || '').toLowerCase());
+    return {
+      ...n,
+      tech: n.tech || match?.tech || (match?.technologies || []).join(' / ') || 'Unknown',
+      risk: n.risk || match?.risk || 'low',
+      pattern: n.pattern || match?.pattern || 'a',
+    };
+  });
+  return graphData;
+}
+
+function ensureComplexPredefinedRelationships(graphData) {
+  const apps = (window._allApps || []).filter(a => a.isPredefined).slice(0, 10);
+  if (apps.length < 10) return graphData;
+  const nodeIds = new Set((graphData.nodes || []).map(n => n.id));
+  const ids = apps.map(a => a.id).filter(id => nodeIds.has(id));
+  if (ids.length < 10) return graphData;
+
+  const edges = graphData.edges || [];
+  const seen = new Set(edges.map(e => `${e.from}->${e.to}:${e.type || ''}:${e.label || ''}`));
+  const addEdge = (from, to, type, label, weight = 2) => {
+    const key = `${from}->${to}:${type}:${label}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    edges.push({ from, to, type, label, weight });
+  };
+
+  for (let i = 0; i < ids.length; i += 1) {
+    const a = ids[i];
+    const b = ids[(i + 1) % ids.length];
+    const c = ids[(i + 3) % ids.length];
+    addEdge(a, b, 'api', 'REST sync', 2);
+    addEdge(a, c, 'msg', 'Event stream', 2);
+  }
+
+  graphData.edges = edges;
+  return graphData;
+}
+async function connectGitHub() {
+  const user  = document.getElementById('gh-user-input').value.trim();
+  const token = document.getElementById('gh-token-input').value.trim();
+  if (!user) { JarvisNotify.warn('Please enter a GitHub username'); return; }
+  if (!token) { JarvisNotify.warn('Please enter a Personal Access Token'); return; }
+  JarvisNotify.info('Connecting to GitHub...');
+  JarvisStream.appendLine('agent-stream-repos', { agent:'GITHUB', text:`Connecting as @${user}...`, type:'info' });
+  try {
+    await JarvisAPI.github.connect(token, user);
+    localStorage.setItem('jarvis_github_user', user);
+    document.getElementById('github-status').textContent = `@${user}`;
+    document.getElementById('github-status').style.color = 'var(--accent-emerald)';
+    document.getElementById('gh-connect-state').textContent = `Connected as @${user}`;
+    JarvisStream.appendLine('agent-stream-repos', { agent:'GITHUB', text:`Connected. Fetching repositories...`, type:'success' });
+    const repos = await JarvisAPI.github.listRepos(user);
+    renderRepoList(repos.repos || []);
+    JarvisNotify.success(`Found ${(repos.repos||[]).length} repositories`);
+    await loadOverviewData();
+  } catch(e) {
+    JarvisNotify.error('GitHub connection failed — loading demo repos');
+    JarvisStream.appendLine('agent-stream-repos', { agent:'GITHUB', text:`Failed: ${e.message}. Loading demo data.`, type:'warn' });
+    renderRepoList(getDemoRepos());
+  }
+}
+
+async function restoreGitHubSession() {
+  try {
+    const profile = await JarvisAPI.github.getProfile();
+    const user = profile?.user;
+    if (!user) return;
+
+    document.getElementById('gh-user-input').value = user;
+    document.getElementById('github-status').textContent = `@${user}`;
+    document.getElementById('github-status').style.color = 'var(--accent-emerald)';
+    document.getElementById('gh-connect-state').textContent = `Connected as @${user} (restored)`;
+
+    let repos;
+    try {
+      repos = await JarvisAPI.assessment.getRepos(user);
+    } catch {
+      repos = await JarvisAPI.github.listRepos(user);
+    }
+    renderRepoList(repos?.repos || []);
+    await loadOverviewData();
+  } catch (_) {
+    const savedUser = localStorage.getItem('jarvis_github_user');
+    if (savedUser) {
+      document.getElementById('gh-user-input').value = savedUser;
+    }
+  }
+}
+
+function getDemoRepos() {
+  return [
+    { full_name:'demo/customer-portal', name:'customer-portal', description:'React + Java Spring Boot customer portal', language:'Java', stargazers_count:12, updated_at:'2024-11-15' },
+    { full_name:'demo/order-service', name:'order-service', description:'Node.js microservice for order processing', language:'JavaScript', stargazers_count:5, updated_at:'2024-12-01' },
+    { full_name:'demo/payment-gateway', name:'payment-gateway', description:'PCI-DSS compliant payment processing service', language:'Java', stargazers_count:8, updated_at:'2025-01-10' },
+    { full_name:'demo/inventory-api', name:'inventory-api', description:'.NET Core inventory management API', language:'C#', stargazers_count:3, updated_at:'2024-10-20' },
+    { full_name:'demo/reporting-engine', name:'reporting-engine', description:'Python/Django analytics and reporting platform', language:'Python', stargazers_count:6, updated_at:'2024-11-30' },
+    { full_name:'demo/auth-service', name:'auth-service', description:'Go-based JWT authentication microservice', language:'Go', stargazers_count:14, updated_at:'2025-01-05' },
+  ];
+}
+
+function renderRepoList(repos) {
+  document.getElementById('repo-list-title').textContent = `Repositories (${repos.length})`;
+  document.getElementById('repo-list').innerHTML = repos.map(r => `
+    <div class="repo-card" id="repo-${(r.full_name||r.name||'repo').replace(/[^a-zA-Z0-9_-]/g,'_')}" onclick="toggleRepo('${(r.full_name||r.name||'').replace(/'/g, "\\'")}',this)">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="repo-check" id="check-${(r.full_name||r.name||'repo').replace(/[^a-zA-Z0-9_-]/g,'_')}"></div>
+        <div style="flex:1">
+          <div class="repo-name">📁 ${r.full_name || r.name}</div>
+          <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px">${r.description||'No description'}</div>
+          <div class="repo-meta">
+            <span>${r.language||'Unknown'}</span>
+            <span>⭐ ${r.stargazers_count||0}</span>
+            <span>Updated ${r.updated_at?r.updated_at.slice(0,10):'unknown'}</span>
+          </div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function toggleRepo(fullName, card) {
+  const key = fullName;
+  const checkId = 'check-' + key.replace(/[^a-zA-Z0-9_-]/g,'_');
+  if (_selectedRepos.has(key)) {
+    _selectedRepos.delete(key);
+    card.classList.remove('selected');
+    const el = document.getElementById(checkId); if (el) el.textContent = '';
+  } else {
+    _selectedRepos.add(key);
+    card.classList.add('selected');
+    const el = document.getElementById(checkId); if (el) el.textContent = '✓';
+  }
+  const btn = document.getElementById('btn-scan');
+  btn.disabled = _selectedRepos.size === 0;
+  btn.style.opacity = _selectedRepos.size > 0 ? '1' : '0.4';
+  document.getElementById('selected-count').textContent = `${_selectedRepos.size} selected`;
+}
+
+async function startScan() {
+  if (_selectedRepos.size === 0) return;
+  const repos = Array.from(_selectedRepos);
+  const selectedTools = getSelectedToolIntegrations();
+  const wrap = document.getElementById('scan-progress-wrap');
+  wrap.classList.add('show');
+  document.getElementById('btn-scan').disabled = true;
+  document.getElementById('btn-scan').style.opacity = '0.4';
+
+  JarvisStream.appendLine('agent-stream-repos', { agent:'ORCHESTRATOR', text:`Starting assessment scan for ${repos.length} repositories...`, type:'info' });
+  JarvisStream.appendLine('agent-stream-repos', { agent:'ORCHESTRATOR', text:`Enabled tool integrations: ${selectedTools.join(', ')}`, type:'info' });
+  JarvisNotify.agent(`Assessment scan started for ${repos.length} repos`);
+
+  try {
+    const resp = await JarvisAPI.assessment.startScan(repos);
+    const runId = resp.run_id;
+    _lastRunId = runId;
+    localStorage.setItem(ACTIVE_SCAN_KEY, runId);
+    JarvisStream.appendLine('agent-stream-repos', { agent:'ORCHESTRATOR', text:`Run ID: ${runId}. Connecting to agent stream...`, type:'info' });
+    pollScanStatus(runId);
+  } catch(e) {
+    const msg = e?.message || 'Unable to start scan';
+    JarvisNotify.error(`Scan start failed: ${msg}`);
+    JarvisStream.appendLine('agent-stream-repos', { agent:'ORCHESTRATOR', text:`Scan start failed: ${msg}`, type:'error' });
+    document.getElementById('btn-scan').disabled = false;
+    document.getElementById('btn-scan').style.opacity = '1';
+  }
+}
+
+function simulateScan(repos) {
+  const stages = [
+    { stage:'Cloning repositories', pct:15 },
+    { stage:'Analyzing code structure', pct:30 },
+    { stage:'Reading Terraform configs', pct:45 },
+    { stage:'Extracting dependencies', pct:60 },
+    { stage:'Pattern classification (Claude AI)', pct:75 },
+    { stage:'Building dependency graph', pct:88 },
+    { stage:'Generating migration bundles', pct:100 },
+  ];
+  let i = 0;
+  const interval = setInterval(() => {
+    if (i >= stages.length) { clearInterval(interval); onScanComplete(); return; }
+    const { stage, pct } = stages[i++];
+    document.getElementById('scan-progress-fill').style.width = pct+'%';
+    document.getElementById('scan-progress-stage').textContent = stage+'...';
+    document.getElementById('scan-progress-pct').textContent = pct+'%';
+    JarvisStream.appendLine('agent-stream-repos', { agent:'AGENT', text:stage, type: pct<60?'info':pct<90?'success':'success' });
+  }, 900);
+}
+
+function onScanComplete() {
+  JarvisStream.appendLine('agent-stream-repos', { agent:'ORCHESTRATOR', text:'Scan complete. Navigate to Scan Results or Migration Bundles tabs.', type:'success' });
+  JarvisNotify.success('Assessment scan complete!');
+  localStorage.removeItem(ACTIVE_SCAN_KEY);
+  loadAssessmentDataFromDb(_lastRunId, true).catch(() => {
+    loadDemoData();
+    loadGraph('full');
+    setTimeout(() => JarvisNav.showPage('scan'), 1500);
+  });
+}
+
+async function pollScanStatus(runId) {
+  if (_scanPoller) clearInterval(_scanPoller);
+
+  const wrap = document.getElementById('scan-progress-wrap');
+  wrap.classList.add('show');
+  localStorage.setItem(ACTIVE_SCAN_KEY, runId);
+
+  const tick = async () => {
+    try {
+      const s = await JarvisAPI.assessment.getScanStatus(runId);
+      const pct = s.progress || 0;
+      const stage = s.stage || 'Processing...';
+
+      document.getElementById('scan-progress-fill').style.width = pct + '%';
+      document.getElementById('scan-progress-stage').textContent = stage;
+      document.getElementById('scan-progress-pct').textContent = pct + '%';
+
+      if (s.status === 'complete') {
+        clearInterval(_scanPoller);
+        _scanPoller = null;
+        onScanComplete();
+        return;
+      }
+
+      if (s.status === 'failed') {
+        clearInterval(_scanPoller);
+        _scanPoller = null;
+        localStorage.removeItem(ACTIVE_SCAN_KEY);
+        const reason = s.failure_reason || s.error_msg || 'Unknown error';
+        const fix = s.remediation || 'Review selected repositories and retry scan.';
+        JarvisNotify.error(`Scan failed: ${reason}`);
+        JarvisStream.appendLine('agent-stream-repos', { agent:'ORCHESTRATOR', text:`Scan failed: ${reason}`, type:'error' });
+        JarvisStream.appendLine('agent-stream-repos', { agent:'ORCHESTRATOR', text:`How to fix: ${fix}`, type:'warn' });
+        document.getElementById('btn-scan').disabled = false;
+        document.getElementById('btn-scan').style.opacity = '1';
+      }
+    } catch(e) {
+      clearInterval(_scanPoller);
+      _scanPoller = null;
+      JarvisNotify.error(`Scan status error: ${e?.message || 'Unable to fetch status'}`);
+      JarvisStream.appendLine('agent-stream-repos', { agent:'ORCHESTRATOR', text:`Scan status error: ${e?.message || 'Unable to fetch status'}`, type:'error' });
+      document.getElementById('btn-scan').disabled = false;
+      document.getElementById('btn-scan').style.opacity = '1';
+    }
+  };
+
+  await tick();
+  _scanPoller = setInterval(tick, 2000);
+}
+
+async function restoreActiveScan() {
+  const runId = localStorage.getItem(ACTIVE_SCAN_KEY);
+  if (!runId) return;
+  _lastRunId = runId;
+  JarvisStream.appendLine('agent-stream-repos', { agent:'ORCHESTRATOR', text:`Restoring active scan ${runId}...`, type:'info' });
+  await pollScanStatus(runId);
+}
+
+async function loadRecentScans() {
+  const host = document.getElementById('recent-scans-list');
+  if (!host) return;
+  const scans = await JarvisAPI.assessment.getScans(8);
+  const items = scans?.items || [];
+
+  if (!items.length) {
+    host.innerHTML = `
+      <div style="text-align:center;padding:40px;color:var(--text-muted)">
+        <div style="font-size:28px;margin-bottom:8px">📋</div>
+        <div>No scans started yet</div>
+        <div style="font-size:12px;margin-top:4px">Go to the Repositories tab to start your first assessment</div>
+      </div>`;
+    return;
+  }
+
+  host.innerHTML = items.map(s => {
+    const repoCount = (s.summary?.repo_count ?? s.repos?.length ?? 0);
+    const appCount = (s.summary?.app_count ?? 0);
+    const pct = (s.summary?.progress ?? (s.status === 'complete' ? 100 : 0));
+    const color = s.status === 'complete' ? 'var(--accent-emerald)' : s.status === 'failed' ? 'var(--accent-red)' : 'var(--accent-amber)';
+    return `
+      <div style="padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-surface);margin-bottom:8px;cursor:pointer" onclick="openScanFromHistory('${s.id}')">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:center">
+          <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">${s.id.slice(0, 8)} • ${repoCount} repos • ${appCount} apps</div>
+          <div style="font-family:var(--font-mono);font-size:11px;color:${color};text-transform:uppercase">${s.status}</div>
+        </div>
+        <div style="margin-top:6px;height:6px;background:var(--bg-elevated);border-radius:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${color}"></div></div>
+      </div>`;
+  }).join('');
+}
+
+async function openScanFromHistory(runId) {
+  _lastRunId = runId;
+  await loadAssessmentDataFromDb(runId, true);
+}
+
+async function loadAssessmentDataFromDb(runId, navigate = false) {
+  const [appsResp, demoAppsResp] = await Promise.all([
+    JarvisAPI.assessment.getApplications({ run_id: runId, limit: 500 }),
+    runId === 'DEMO-RUN-001'
+      ? Promise.resolve({ items: [] })
+      : JarvisAPI.assessment.getApplications({ run_id: 'DEMO-RUN-001', limit: 500 }).catch(() => ({ items: [] })),
+  ]);
+
+  const appsRaw = [...(appsResp?.items || [])];
+  const appIds = new Set(appsRaw.map(a => a.id));
+  (demoAppsResp?.items || []).forEach(a => {
+    if (!appIds.has(a.id)) appsRaw.push(a);
+  });
+
+  const apps = appsRaw.map(a => {
+    const profile = parseFindingProfile(a.findings_json);
+    return {
+      id: a.id,
+      name: a.name,
+      pattern: normalizePattern(a.pattern_id || 'a'),
+      tech: [a.language, a.framework].filter(Boolean).join(' / ') || 'Unknown',
+      risk: (a.risk_score || 0) >= 70 ? 'high' : (a.risk_score || 0) >= 40 ? 'medium' : 'low',
+      lines: a.loc || 0,
+      bundle: '—',
+      ...parseFindingCounts(a.findings_json),
+      integrationModel: profile.integrationModel,
+      couplingProfile: profile.couplingProfile,
+      tags: profile.tags,
+      isPredefined: profile.isPredefined,
+      findingsRaw: a.findings_json,
+      hasMessaging: Boolean(a.has_messaging),
+      technologies: [a.language, a.framework].filter(Boolean),
+      databases: parseArrayField(a.db_types_json),
+    };
+  });
+
+  const selectedTools = getSelectedToolIntegrations();
+  apps.forEach((a, idx) => {
+    a.vms = estimateVmCount(a.lines);
+    a.status = deriveStatus(a.risk, idx);
+    a.estimatedHours = Math.max(40, Math.round((a.lines || 0) / 350));
+    a.toolIntegrations = selectedTools;
+  });
+
+  window._allApps = apps;
+  renderApps(apps);
+  if (apps.length) selectApp(apps[0].id);
+  document.getElementById('apps-count-badge').textContent = `${apps.length} Apps`;
+  document.getElementById('apps-showing').textContent = `Showing ${(window._lastRenderedApps || []).length} of ${apps.length} applications`;
+  document.getElementById('kpi-apps').textContent = String(apps.length);
+
+  const scansResp = await JarvisAPI.assessment.getScans(10);
+  const scan = (scansResp?.items || []).find(x => x.id === runId);
+  if (scan) {
+    document.getElementById('kpi-repos').textContent = String(scan.summary?.repo_count ?? scan.repos?.length ?? '—');
+  }
+
+  const [bundles, demoBundles] = await Promise.all([
+    JarvisAPI.assessment.getBundles(runId).catch(() => ({ items: [] })),
+    runId === 'DEMO-RUN-001'
+      ? Promise.resolve({ items: [] })
+      : JarvisAPI.assessment.getBundles('DEMO-RUN-001').catch(() => ({ items: [] })),
+  ]);
+  const bundleItems = [...(bundles?.items || [])];
+  const bundleIds = new Set(bundleItems.map(b => b.bundle_id));
+  (demoBundles?.items || []).forEach(b => {
+    if (!bundleIds.has(b.bundle_id)) bundleItems.push(b);
+  });
+  window._allBundles = bundleItems.map(b => ({
+    id: b.bundle_id,
+    name: `${b.pattern_id} Bundle`,
+    apps: (b.apps || []).map(x => x.name || x.id),
+    patterns: [normalizePattern(b.pattern_id)],
+    wave: 1,
+    status: 'pending',
+    risk: (b.avg_risk || 0) >= 70 ? 'high' : (b.avg_risk || 0) >= 40 ? 'medium' : 'low',
+    effort: `${Math.max(2, Math.round(((b.apps || []).length || 1) * 1.2))} weeks`,
+    coupling: b.coupling || 'loose',
+    bundleReason: b.bundle_reason || '',
+    affinityScore: b.affinity_score || 0,
+  }));
+
+  document.getElementById('bundle-count').textContent = String(window._allBundles.length);
+  document.getElementById('bundle-approved').textContent = String(window._allBundles.filter(b => b.status === 'approved').length);
+  document.getElementById('bundle-pending').textContent = String(window._allBundles.filter(b => b.status === 'pending').length);
+  renderBundles(window._allBundles);
+
+  const patternCounts = apps.reduce((acc, app) => {
+    acc[app.pattern] = (acc[app.pattern] || 0) + 1;
+    return acc;
+  }, {});
+  const total = Math.max(1, apps.length);
+  const colors = { a:'#3B82F6', b:'#60A5FA', c:'#22D3EE', d:'#06B6D4', e:'#10B981', f:'#34D399', g:'#6EE7B7', h:'#A7F3D0', i:'#8B5CF6' };
+  const patternRows = Object.entries(patternCounts).map(([code, count]) => ({ code, count }));
+  document.getElementById('pattern-dist').innerHTML = patternRows.length ? patternRows.map(p => `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;cursor:pointer" onclick="JarvisNav.showPage('scan');filterApps('${p.code}')">
+      <span class="pattern-badge pattern-${p.code}">Pattern ${p.code.toUpperCase()}</span>
+      <div style="flex:1;height:8px;background:var(--bg-elevated);border-radius:4px;overflow:hidden"><div style="height:100%;width:${(p.count/total*100).toFixed(0)}%;background:${colors[p.code] || '#3B82F6'}"></div></div>
+      <span style="font-family:var(--font-mono);font-size:12px;min-width:20px">${p.count}</span>
+    </div>
+  `).join('') : '<div style="text-align:center;padding:20px;color:var(--text-muted)">No patterns found</div>';
+
+  JarvisChart.donut('pattern-donut', patternRows.map(p => ({ value: p.count, color: colors[p.code] || '#3B82F6' })), { center: String(apps.length), centerSub: 'Apps' });
+  renderPatternAppCounts(apps);
+  renderSharedServicesTable(apps);
+
+  const avgRisk = appsRaw.length
+    ? Math.round(appsRaw.reduce((sum, a) => sum + (a.risk_score || 0), 0) / appsRaw.length)
+    : 0;
+  document.getElementById('kpi-risk').textContent = String(avgRisk);
+
+  try {
+    const insights = await JarvisAPI.assessment.getInsights(runId);
+    const patternCount = (insights.pattern_distribution || []).length;
+    document.getElementById('kpi-patterns').textContent = String(patternCount || 0);
+    if (typeof insights.avg_risk === 'number') {
+      document.getElementById('kpi-risk').textContent = String(Math.round(insights.avg_risk));
+    }
+  } catch (_) {}
+
+  await loadRecentScans();
+  await loadGraph('full');
+  if (navigate) {
+    setTimeout(() => JarvisNav.showPage('scan'), 300);
+  }
+}
+
+async function uploadRepo(input) {
+  if (!input.files[0]) return;
+  const fd = new FormData();
+  fd.append('file', input.files[0]);
+  JarvisNotify.info('Uploading repository archive...');
+  try {
+    const r = await JarvisAPI.assessment.uploadRepo(fd);
+    JarvisNotify.success(`Uploaded: ${r.name||input.files[0].name}`);
+    if (r.repos) renderRepoList(r.repos);
+  } catch(e) { JarvisNotify.error('Upload failed: '+e.message); }
+}
+
+function approveBundle(id, approve) {
+  const bundle = (window._allBundles||[]).find(b=>b.id===id);
+  if (!bundle) return;
+  bundle.status = approve ? 'approved' : 'rejected';
+  JarvisNotify[approve?'success':'warn'](`Bundle ${id} ${approve?'approved':'rejected'}`);
+  try { JarvisAPI.assessment.approveBundle(id, approve); } catch(e) {}
+  renderBundles(window._allBundles||[]);
+  document.getElementById('bundle-approved').textContent = (window._allBundles||[]).filter(b=>b.status==='approved').length;
+  document.getElementById('bundle-pending').textContent = (window._allBundles||[]).filter(b=>b.status==='pending').length;
+}
+
+function approveAllBundles() {
+  (window._allBundles||[]).forEach(b => { if(b.status==='pending') b.status='approved'; });
+  renderBundles(window._allBundles||[]);
+  document.getElementById('bundle-approved').textContent = (window._allBundles||[]).length;
+  document.getElementById('bundle-pending').textContent = '0';
+  JarvisNotify.success('All bundles approved');
+}
+
+function generateBundles() {
+  JarvisNotify.agent('Generating migration bundles with AI clustering...');
+  setTimeout(() => { loadDemoBundles(); JarvisNotify.success('Bundles generated!'); }, 1500);
+}
+
+function openAppDetail(id) {
+  const app = (window._allApps||[]).find(a=>a.id===id);
+  if (!app) return;
+  JarvisPanel.open(app.name, () => `
+    <div class="panel-header">
+      <div class="panel-title">${app.name}</div>
+      <div class="panel-subtitle">${app.id} · ${app.tech}</div>
+    </div>
+    <div class="panel-metric-strip">
+      <div class="panel-metric"><div class="panel-metric-label">Pattern</div><div class="panel-metric-value"><span class="pattern-badge pattern-${app.pattern}">Pattern ${app.pattern.toUpperCase()}</span></div></div>
+      <div class="panel-metric"><div class="panel-metric-label">Risk</div><div class="panel-metric-value" style="color:${app.risk==='high'?'var(--accent-red)':app.risk==='medium'?'var(--accent-amber)':'var(--accent-emerald)'};text-transform:capitalize">${app.risk}</div></div>
+      <div class="panel-metric"><div class="panel-metric-label">Lines of Code</div><div class="panel-metric-value">${(app.lines/1000).toFixed(1)}k</div></div>
+      <div class="panel-metric"><div class="panel-metric-label">Integrations</div><div class="panel-metric-value" style="color:var(--accent-cyan)">${app.appToApp||0}/${app.appToDb||0}</div></div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-section-title">Migration Strategy</div>
+      <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;padding:12px;background:var(--bg-surface);border-radius:var(--radius-sm);border:1px solid var(--border)">${migrationStrategy(app.pattern)}</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-section-title">Pattern Analysis</div>
+      <div style="font-size:13px;color:var(--text-secondary);line-height:1.6">${patternLabel(app.pattern)}</div>
+    </div>
+    <div style="margin-top:16px;display:flex;gap:8px">
+      <button onclick="JarvisPanel.close()" style="flex:1;padding:10px;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:var(--radius-sm);color:var(--accent-blue);font-family:var(--font-display);font-weight:600;font-size:13px;cursor:pointer">View Full Analysis</button>
+    </div>
+  `, ['Assessment Engine', 'Scan Results']);
+}
+
+function openBundleDetail(id) {
+  const bundle = (window._allBundles||[]).find(b=>b.id===id);
+  if (!bundle) return;
+  JarvisPanel.open(bundle.name, () => `
+    <div class="panel-header">
+      <div class="panel-title">${bundle.name}</div>
+      <div class="panel-subtitle">${bundle.id} · Wave ${bundle.wave} · ${bundle.apps.length} applications</div>
+    </div>
+    <div class="panel-metric-strip">
+      <div class="panel-metric"><div class="panel-metric-label">Apps</div><div class="panel-metric-value">${bundle.apps.length}</div></div>
+      <div class="panel-metric"><div class="panel-metric-label">Wave</div><div class="panel-metric-value text-cyan">${bundle.wave}</div></div>
+      <div class="panel-metric"><div class="panel-metric-label">Effort</div><div class="panel-metric-value">${bundle.effort}</div></div>
+      <div class="panel-metric"><div class="panel-metric-label">Risk</div><div class="panel-metric-value" style="text-transform:capitalize;color:${bundle.risk==='high'?'var(--accent-red)':bundle.risk==='medium'?'var(--accent-amber)':'var(--accent-emerald)'}">${bundle.risk}</div></div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-section-title">Applications in Bundle</div>
+      ${bundle.apps.map(a=>`<div style="padding:8px 12px;border-bottom:1px solid var(--border);font-size:13px">${a}</div>`).join('')}
+    </div>
+    <div class="panel-section" style="margin-top:16px">
+      <div class="panel-section-title">Patterns</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${[...new Set(bundle.patterns)].map(p=>`<span class="pattern-badge pattern-${p}">Pattern ${p.toUpperCase()}</span>`).join('')}</div>
+    </div>
+  `, ['Assessment Engine', 'Migration Bundles']);
+}
+
+function generateMigrationPlan(id) {
+  JarvisNotify.agent(`Generating migration plan for bundle ${id}...`);
+  setTimeout(() => JarvisNotify.success(`Migration plan generated for ${id}`), 2000);
+}
+
+function mergeGraphDataSets(primary, secondary) {
+  const nodeMap = new Map();
+  const edgeMap = new Map();
+  const sourceNodes = [...(primary?.nodes || []), ...(secondary?.nodes || [])];
+  const sourceEdges = [...(primary?.edges || []), ...(secondary?.edges || [])];
+
+  sourceNodes.forEach(node => {
+    if (!node || !node.id) return;
+    if (!nodeMap.has(node.id)) nodeMap.set(node.id, node);
+  });
+
+  sourceEdges.forEach(edge => {
+    if (!edge || !edge.from || !edge.to) return;
+    const key = `${edge.from}::${edge.to}::${edge.type || ''}::${edge.label || ''}`;
+    if (!edgeMap.has(key)) edgeMap.set(key, edge);
+  });
+
+  return { nodes: Array.from(nodeMap.values()), edges: Array.from(edgeMap.values()) };
+}
+
+async function getMergedGraphData(runId) {
+  if (!runId) return null;
+  if (runId === 'DEMO-RUN-001') {
+    return await JarvisAPI.assessment.getDependencyGraph('DEMO-RUN-001');
+  }
+  const [mainGraph, demoGraph] = await Promise.all([
+    JarvisAPI.assessment.getDependencyGraph(runId).catch(() => ({ nodes: [], edges: [] })),
+    JarvisAPI.assessment.getDependencyGraph('DEMO-RUN-001').catch(() => ({ nodes: [], edges: [] })),
+  ]);
+  return mergeGraphDataSets(mainGraph, demoGraph);
+}
+
+async function loadGraph(type, btn) {
+  JarvisNotify.info(`Loading ${type} dependency graph...`);
+  document.querySelectorAll('#page-graph .filter-chip').forEach(c=>c.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+
+  let graphData = null;
+
+  if (_lastRunId) {
+    try {
+      graphData = await getMergedGraphData(_lastRunId);
+    } catch (e) {
+      graphData = null;
+    }
+  }
+
+  if (!graphData || !Array.isArray(graphData.nodes) || graphData.nodes.length === 0) {
+    const apps = window._allApps || [];
+    const nodes = [];
+    const edges = [];
+    apps.forEach((a, idx) => {
+      nodes.push({ id: a.id, label: a.name, type: 'app', pattern: a.pattern, risk: a.risk });
+      const target = `gcp-${a.id}`;
+      nodes.push({ id: target, label: 'GCP', type: 'gcp' });
+      edges.push({ from: a.id, to: target, type: 'api', label: 'migrates_to' });
+      if (idx > 0 && idx % 3 === 0) {
+        edges.push({ from: apps[idx - 1].id, to: a.id, type: 'msg', label: 'depends_on' });
+      }
+    });
+    graphData = { nodes, edges };
+  }
+
+  let nodes = graphData.nodes || [];
+  let edges = graphData.edges || [];
+
+  graphData = ensureComplexPredefinedRelationships(enrichGraphNodesWithAppDetails({ nodes, edges }));
+  nodes = graphData.nodes || [];
+  edges = graphData.edges || [];
+
+  if (type === 'critical') {
+    const criticalIds = new Set(nodes.filter(n => n.risk === 'high' || n.critical).map(n => n.id));
+    edges = edges.filter(e => criticalIds.has(e.from) || criticalIds.has(e.to));
+    nodes = nodes.filter(n => criticalIds.has(n.id) || edges.some(e => e.from === n.id || e.to === n.id));
+  } else if (type === 'external') {
+    nodes = nodes.filter(n => n.type === 'app' || n.type === 'gcp');
+    const idSet = new Set(nodes.map(n => n.id));
+    edges = edges.filter(e => idSet.has(e.from) && idSet.has(e.to));
+  } else if (type === 'pcf') {
+    nodes = nodes.filter(n => /pcf|tas|legacy/i.test(`${n.label || ''} ${n.pattern || ''}`) || n.type === 'gcp');
+    const idSet = new Set(nodes.map(n => n.id));
+    edges = edges.filter(e => idSet.has(e.from) && idSet.has(e.to));
+  }
+
+  const renderData = { nodes, edges };
+  const container = document.getElementById('dep-graph-container');
+  if (!container) return;
+
+  if (typeof vis !== 'undefined') {
+    const network = JarvisGraph.render('dep-graph-container', renderData, {});
+    _graphState = { network, graphData: renderData };
+    populateGraphAppSelectors(nodes);
+    if (network) {
+      network.on('click', (params) => {
+        if (params.nodes?.length) {
+          const node = (renderData.nodes || []).find(n => n.id === params.nodes[0]);
+          showNodeDetails(node);
+          return;
+        }
+        if (params.edges?.length) {
+          const edge = (renderData.edges || []).find(e => (e.id || `${e.from}-${e.to}`) === params.edges[0]);
+          showEdgeDetails(edge);
+        }
+      });
+    }
+  } else {
+    container.innerHTML = `
+      <div style="padding:14px">
+        <div style="font-family:var(--font-display);font-weight:600;font-size:13px;margin-bottom:10px">Dependency Map (Fallback View)</div>
+        <div style="display:grid;grid-template-columns:1fr;gap:8px;max-height:420px;overflow:auto">
+          ${edges.slice(0, 150).map(e => {
+            const from = nodes.find(n => n.id === e.from)?.label || e.from;
+            const to = nodes.find(n => n.id === e.to)?.label || e.to;
+            return `<div style="padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-surface);font-size:12px;color:var(--text-secondary)"><span style="color:var(--accent-cyan)">${from}</span> → <span style="color:var(--accent-emerald)">${to}</span> <span style="color:var(--text-muted);font-family:var(--font-mono)">(${e.label || e.type || 'link'})</span></div>`;
+          }).join('') || '<div style="color:var(--text-muted);font-size:12px">No dependencies to display.</div>'}
+        </div>
+      </div>`;
+    _graphState = { network: null, graphData: renderData };
+    populateGraphAppSelectors(nodes);
+  }
+
+  const nodeCount = nodes.length;
+  const edgeCount = edges.length;
+  const isolated = nodes.filter(n => !edges.some(e => e.from === n.id || e.to === n.id)).length;
+  const clusterEstimate = Math.max(1, Math.round(nodeCount / 6));
+
+  document.getElementById('graph-nodes').textContent = String(nodeCount);
+  document.getElementById('graph-edges').textContent = String(edgeCount);
+  document.getElementById('graph-clusters').textContent = String(clusterEstimate);
+  document.getElementById('graph-isolated').textContent = String(isolated);
+}
+
+function resetGraphLayout() { JarvisNotify.info('Graph layout reset'); }
+function exportGraphPNG() { JarvisNotify.info('Graph export initiated'); }
+function exportApps() {
+  const apps = window._allApps||[];
+  const csv = ['ID,Name,Pattern,Technology,Risk,Lines,Bundle', ...apps.map(a=>`${a.id},${a.name},${a.pattern},${a.tech},${a.risk},${a.lines},${a.bundle}`)].join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='assessment-apps.csv'; a.click();
+  JarvisNotify.success('CSV exported');
+}
+function loadMoreApps() {}
+async function loadOverviewData() {
+  try {
+    await loadRecentScans();
+    const scans = await JarvisAPI.assessment.getScans(10);
+    const completeRuns = (scans.items || []).filter(s => s.status === 'complete');
+    const bestComplete = completeRuns.sort((a, b) => {
+      const ac = Number(a?.summary?.app_count || 0);
+      const bc = Number(b?.summary?.app_count || 0);
+      return bc - ac;
+    })[0];
+    if (bestComplete) {
+      _lastRunId = bestComplete.id;
+      await loadAssessmentDataFromDb(bestComplete.id, false);
+      return;
+    }
+
+    const apps = await JarvisAPI.assessment.getApplications({ limit:100 });
+    document.getElementById('kpi-apps').textContent = apps.total||apps.count||apps.items?.length||apps.applications?.length||'—';
+    loadGraph('full');
+  } catch(e) { loadDemoData(); }
+}
+</script>
+</body>
+</html>

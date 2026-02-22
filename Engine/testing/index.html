@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J.A.R.V.I.S. — Testing Engine</title>
+<link rel="stylesheet" href="../shared/jarvis.css">
+<style>
+/* ─── AGENT STREAM ──────────────────────────────── */
+.agent-stream {
+  background: var(--bg-deep); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 12px;
+  height: 240px; overflow-y: auto;
+  font-family: var(--font-mono); font-size: 11px;
+}
+.agent-stream-line { display: flex; gap: 10px; padding: 2px 0; }
+.stream-time    { color: var(--text-muted); flex-shrink: 0; }
+.stream-agent   { font-weight: 600; flex-shrink: 0; min-width: 120px; }
+.stream-info    { color: var(--jarvis-glow); }
+.stream-success { color: var(--accent-emerald); }
+.stream-warn    { color: var(--accent-amber); }
+.stream-error   { color: var(--accent-red); }
+.stream-text    { color: var(--text-secondary); flex: 1; white-space: pre-wrap; word-break: break-all; }
+
+/* ─── TEST SUITE CARD ────────────────────────────── */
+.suite-card {
+  padding: 18px 20px; border: 1px solid var(--border);
+  border-radius: var(--radius-md); background: var(--bg-primary);
+  cursor: pointer; transition: all 0.2s;
+  border-left: 4px solid transparent;
+}
+.suite-card:hover { border-color: var(--border-light); border-left-color: var(--accent-emerald); }
+.suite-card.active { border-left-color: var(--accent-emerald); background: rgba(16,185,129,0.03); }
+.suite-card.running { border-left-color: var(--jarvis-glow); animation: suitePulse 2s ease-in-out infinite; }
+.suite-card.passed  { border-left-color: var(--accent-emerald); }
+.suite-card.failed  { border-left-color: var(--accent-red); }
+@keyframes suitePulse {
+  0%,100% { box-shadow: none; }
+  50%      { box-shadow: 0 0 12px rgba(16,185,129,0.15); }
+}
+.suite-type {
+  font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1px; padding: 2px 8px; border-radius: 4px;
+  font-family: var(--font-mono); display: inline-block; margin-bottom: 8px;
+}
+.type-smoke  { background: rgba(56,189,248,0.15);  color: var(--jarvis-glow); }
+.type-sit    { background: rgba(139,92,246,0.15);   color: var(--accent-purple); }
+.type-perf   { background: rgba(245,158,11,0.15);   color: var(--accent-amber); }
+.type-uat    { background: rgba(16,185,129,0.15);   color: var(--accent-emerald); }
+.type-reg    { background: rgba(59,130,246,0.15);   color: var(--accent-blue); }
+
+/* ─── RESULT ROW ─────────────────────────────────── */
+.result-row {
+  display: grid;
+  grid-template-columns: 60px 1fr 100px 80px 80px 80px 80px;
+  gap: 8px; align-items: center;
+  padding: 10px 16px; font-size: 12px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: all 0.15s;
+  border-left: 3px solid transparent;
+}
+.result-row:hover { background: var(--bg-elevated); border-left-color: var(--accent-emerald); }
+.result-header {
+  background: var(--bg-surface); font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted);
+  font-family: var(--font-display); padding: 8px 16px;
+  border-bottom: 1px solid var(--border); cursor: default;
+}
+.result-header:hover { background: var(--bg-surface); border-left-color: transparent; }
+.result-pass { color: var(--accent-emerald); font-weight: 700; font-family: var(--font-mono); }
+.result-fail { color: var(--accent-red);     font-weight: 700; font-family: var(--font-mono); }
+.result-skip { color: var(--text-muted);     font-family: var(--font-mono); }
+
+/* ─── ISSUE CARD ─────────────────────────────────── */
+.issue-card {
+  padding: 14px 16px; border: 1px solid var(--border);
+  border-radius: var(--radius-md); background: var(--bg-primary);
+  margin-bottom: 10px; cursor: pointer; transition: all 0.2s;
+  border-left: 3px solid transparent;
+}
+.issue-card:hover { border-color: var(--border-light); border-left-color: var(--accent-red); }
+.issue-card.critical { border-left-color: var(--accent-red); background: rgba(239,68,68,0.03); }
+.issue-card.high     { border-left-color: var(--accent-amber); }
+.issue-card.medium   { border-left-color: var(--accent-blue); }
+.issue-title { font-family: var(--font-display); font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+.issue-desc  { font-size: 12px; color: var(--text-secondary); line-height: 1.4; margin-bottom: 8px; }
+.issue-meta  { display: flex; gap: 8px; flex-wrap: wrap; font-size: 11px; font-family: var(--font-mono); }
+
+/* ─── COVERAGE RING ──────────────────────────────── */
+.coverage-ring-wrap { display: flex; align-items: center; justify-content: center; padding: 20px; }
+
+/* ─── METRIC ROW ─────────────────────────────────── */
+.metric-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
+.metric-card { padding: 16px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.metric-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 6px; font-family: var(--font-display); }
+.metric-value { font-family: var(--font-mono); font-weight: 700; font-size: 28px; line-height: 1; }
+.metric-sub   { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+/* ─── PERF CHART ─────────────────────────────────── */
+.perf-bar-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.perf-bar-wrap { flex: 1; height: 8px; background: var(--bg-elevated); border-radius: 4px; overflow: hidden; }
+.perf-bar-fill { height: 100%; border-radius: 4px; transition: width 0.8s ease; }
+.filter-chip {
+  padding: 5px 12px; border-radius: 20px;
+  border: 1px solid var(--border); background: var(--bg-surface);
+  color: var(--text-muted); font-family: var(--font-display); font-weight: 500; font-size: 11px;
+  cursor: pointer; transition: all 0.2s;
+}
+.filter-chip:hover { border-color: var(--border-light); color: var(--text-secondary); }
+.filter-chip.active { background: rgba(16,185,129,0.1); border-color: var(--accent-emerald); color: var(--accent-emerald); }
+</style>
+</head>
+<body>
+
+<!-- ─── TOP BAR ───────────────────────────────────────── -->
+<div class="top-bar">
+  <div class="logo">
+    <div class="logo-mark"></div>
+    <div class="logo-text">J.A.R.V.I.S.<span>Testing Execution Engine</span></div>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-page="overview">Overview</button>
+    <button class="nav-tab" data-page="suites">Test Suites</button>
+    <button class="nav-tab" data-page="results">Test Results</button>
+    <button class="nav-tab" data-page="performance">Performance</button>
+    <button class="nav-tab" data-page="issues">Issues</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted)" id="system-clock"></div>
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md)">
+      <div style="width:28px;height:28px;border-radius:50%;background:var(--gradient-green);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:600;font-size:11px;color:white" id="persona-avatar">TE</div>
+      <div><div style="font-size:12px;font-weight:600;font-family:var(--font-display)" id="persona-label">Testing Engine</div><div style="font-size:10px;color:var(--text-muted)">Execution Platform</div></div>
+    </div>
+    <button onclick="JarvisAuth.logout()" class="btn-logout">← Exit</button>
+  </div>
+</div>
+
+<!-- ─── SYSTEM STATUS ──────────────────────────────────── -->
+<div class="system-status">
+  <div class="system-status-left">
+    <div class="system-status-item"><div class="active-indicator"></div><span>TESTING ENGINE ONLINE</span></div>
+    <div class="system-status-item"><span>UPTIME: <span style="color:var(--accent-emerald)" id="system-uptime">00:00:00</span></span></div>
+    <div class="system-status-item"><span>BACKEND: <span id="backend-status" style="color:var(--accent-amber)">CONNECTING...</span></span></div>
+    <div class="system-status-item"><span>RUNNING: <span id="running-tests" style="color:var(--jarvis-glow)">0</span> SUITES</span></div>
+    <div class="system-status-item"><span>AGENTS: <span style="color:var(--accent-emerald)">READY</span></span></div>
+  </div>
+  <div class="system-status-right">smoke · sit · performance · uat · issue tracking</div>
+</div>
+
+<!-- ─── KPI STRIP ─────────────────────────────────────── -->
+<div class="kpi-strip">
+  <div class="kpi-item"><div class="kpi-label">Test Suites</div><div class="kpi-value text-emerald" id="kpi-suites">—</div><div class="kpi-trend">Total</div></div>
+  <div class="kpi-item"><div class="kpi-label">Tests Run</div><div class="kpi-value" style="color:var(--accent-blue)" id="kpi-total-run">—</div><div class="kpi-trend">This session</div></div>
+  <div class="kpi-item"><div class="kpi-label">Passed</div><div class="kpi-value" style="color:var(--accent-emerald)" id="kpi-passed">—</div><div class="kpi-trend up" id="kpi-pass-pct">—%</div></div>
+  <div class="kpi-item"><div class="kpi-label">Failed</div><div class="kpi-value" style="color:var(--accent-red)" id="kpi-failed">—</div><div class="kpi-trend down" id="kpi-fail-pct">—%</div></div>
+  <div class="kpi-item"><div class="kpi-label">Skipped</div><div class="kpi-value" style="color:var(--text-muted)" id="kpi-skipped">—</div><div class="kpi-trend">—</div></div>
+  <div class="kpi-item"><div class="kpi-label">Coverage</div><div class="kpi-value" style="color:var(--accent-cyan)" id="kpi-coverage">—%</div><div class="kpi-trend">Code coverage</div></div>
+  <div class="kpi-item"><div class="kpi-label">Open Issues</div><div class="kpi-value" style="color:var(--accent-red)" id="kpi-issues">—</div><div class="kpi-trend warn">From test failures</div></div>
+  <div class="kpi-item"><div class="kpi-label">Avg Duration</div><div class="kpi-value" style="color:var(--text-primary)" id="kpi-dur">—</div><div class="kpi-trend">Per suite</div></div>
+</div>
+
+<!-- ─── DETAIL PANEL ───────────────────────────────────── -->
+<div class="panel-backdrop" id="panel-backdrop"></div>
+<div class="detail-panel" id="detail-panel">
+  <div class="panel-top">
+    <div class="panel-breadcrumbs" id="panel-breadcrumbs"></div>
+    <button class="panel-close" id="panel-close-btn">&times;</button>
+  </div>
+  <div class="panel-content" id="panel-content"></div>
+</div>
+
+<!-- ─── MAIN CONTENT ──────────────────────────────────── -->
+<div class="main-content">
+
+<!-- ══ OVERVIEW PAGE ════════════════════════════════════ -->
+<div id="page-overview" class="page active">
+  <div class="section-header animate-in delay-1">
+    <div class="section-title">Testing Overview</div>
+    <div class="section-subtitle">Automated quality gates, test coverage, and issue tracking across all migrated applications</div>
+  </div>
+
+  <div class="metric-row animate-in delay-2">
+    <div class="metric-card"><div class="metric-label">Pass Rate</div><div class="metric-value text-emerald" id="ov-pass-rate">—%</div><div class="metric-sub">All suites</div></div>
+    <div class="metric-card"><div class="metric-label">Active Runs</div><div class="metric-value" style="color:var(--jarvis-glow)" id="ov-active">—</div><div class="metric-sub">Right now</div></div>
+    <div class="metric-card"><div class="metric-label">Avg Response</div><div class="metric-value text-cyan" id="ov-resp">—ms</div><div class="metric-sub">P95 latency</div></div>
+    <div class="metric-card"><div class="metric-label">Open Bugs</div><div class="metric-value text-red" id="ov-bugs">—</div><div class="metric-sub">Needs fix</div></div>
+    <div class="metric-card"><div class="metric-label">UAT Sign-offs</div><div class="metric-value text-blue" id="ov-uat">—</div><div class="metric-sub">Apps approved</div></div>
+  </div>
+
+  <div class="grid-2 animate-in delay-3">
+    <!-- Suite Status Overview -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Test Suite Status</div>
+        <button onclick="JarvisNav.showPage('suites')" style="font-size:11px;color:var(--accent-emerald);background:none;border:none;cursor:pointer;font-family:var(--font-display)">Run Suites →</button>
+      </div>
+      <div class="card-body" id="ov-suite-status">
+        <div style="text-align:center;padding:30px;color:var(--text-muted)">
+          <div style="font-size:32px;margin-bottom:8px">🧪</div>
+          <div>Loading test suite status...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Test Activity -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Recent Test Activity</div>
+        <span class="card-badge badge-live">Live</span>
+      </div>
+      <div class="agent-stream" id="agent-stream-ov" style="border:none;border-radius:0;height:220px">
+        <div class="agent-stream-line"><span class="stream-time">--:--:--</span><span class="stream-agent stream-info">TESTING</span><span class="stream-text">Testing Engine ready. Awaiting suite execution...</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pass/Fail by App -->
+  <div class="card animate-in delay-4 mt-20">
+    <div class="card-header">
+      <div class="card-title">Application Test Results Summary</div>
+      <button onclick="runAllSuites()" style="padding:7px 16px;background:var(--gradient-green);border:none;border-radius:var(--radius-sm);color:white;font-family:var(--font-display);font-weight:600;font-size:12px;cursor:pointer">Run All Suites</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="data-table">
+        <thead><tr><th>Application</th><th>Smoke</th><th>SIT</th><th>Performance</th><th>UAT</th><th>Overall</th><th>Issues</th><th>Action</th></tr></thead>
+        <tbody id="app-results-table"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TEST SUITES PAGE ══════════════════════════════════ -->
+<div id="page-suites" class="page">
+  <div class="section-header animate-in delay-1">
+    <div class="section-title">Test Suites</div>
+    <div class="section-subtitle">Configure and execute automated test suites for each migrated application</div>
+  </div>
+
+  <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center" class="animate-in delay-2">
+    <select id="suite-app-select" onchange="loadSuites(this.value)" style="padding:8px 14px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-family:var(--font-display);font-size:13px">
+      <option value="">Select application...</option>
+      <option value="CustomerPortal">CustomerPortal</option>
+      <option value="OrderService">OrderService</option>
+      <option value="PaymentGateway">PaymentGateway</option>
+      <option value="InventoryAPI">InventoryAPI</option>
+      <option value="AuthService">AuthService</option>
+      <option value="ReportingEngine">ReportingEngine</option>
+    </select>
+    <div style="flex:1"></div>
+    <button onclick="runSelectedSuites()" id="btn-run-suites" style="padding:8px 18px;background:var(--gradient-green);border:none;border-radius:var(--radius-sm);color:white;font-family:var(--font-display);font-weight:600;font-size:13px;cursor:pointer">▶ Run Selected</button>
+    <button onclick="generateSyntheticData()" style="padding:8px 18px;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.3);border-radius:var(--radius-sm);color:var(--accent-purple);font-family:var(--font-display);font-weight:600;font-size:13px;cursor:pointer">Generate Synthetic Data</button>
+  </div>
+
+  <div class="grid-2-1 animate-in delay-3">
+    <div>
+      <div id="suites-list">
+        <div style="text-align:center;padding:60px;color:var(--text-muted)">
+          <div style="font-size:36px;margin-bottom:8px">🧪</div>
+          <div>Select an application to view test suites</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-header">
+          <div class="card-title">Test Agent Stream</div>
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--accent-emerald);box-shadow:0 0 6px var(--accent-emerald)"></div>
+        </div>
+        <div class="agent-stream" id="agent-stream-suites" style="border:none;border-radius:0;height:240px">
+          <div class="agent-stream-line"><span class="stream-time">--:--:--</span><span class="stream-agent stream-info">TEST RUNNER</span><span class="stream-text">Awaiting suite selection...</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Test Agents</div></div>
+        <div class="card-body" style="padding:12px">
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:12px">
+            <div style="display:flex;align-items:center;gap:8px"><div style="width:6px;height:6px;border-radius:50%;background:var(--accent-emerald)"></div>Smoke Test Agent</div>
+            <div style="display:flex;align-items:center;gap:8px"><div style="width:6px;height:6px;border-radius:50%;background:var(--accent-emerald)"></div>SIT Orchestrator Agent</div>
+            <div style="display:flex;align-items:center;gap:8px"><div style="width:6px;height:6px;border-radius:50%;background:var(--accent-emerald)"></div>Performance Test Agent (k6)</div>
+            <div style="display:flex;align-items:center;gap:8px"><div style="width:6px;height:6px;border-radius:50%;background:var(--accent-emerald)"></div>UAT Validation Agent</div>
+            <div style="display:flex;align-items:center;gap:8px"><div style="width:6px;height:6px;border-radius:50%;background:var(--accent-emerald)"></div>GitHub Issues Agent</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TEST RESULTS PAGE ═════════════════════════════════ -->
+<div id="page-results" class="page">
+  <div class="section-header animate-in delay-1">
+    <div class="section-title">Test Results</div>
+    <div class="section-subtitle">Detailed test case results, logs, and failure analysis</div>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center" class="animate-in delay-2">
+    <div style="display:flex;gap:6px">
+      <button class="filter-chip active" onclick="filterResults('all',this)">All</button>
+      <button class="filter-chip" onclick="filterResults('passed',this)">Passed</button>
+      <button class="filter-chip" onclick="filterResults('failed',this)">Failed</button>
+      <button class="filter-chip" onclick="filterResults('skipped',this)">Skipped</button>
+    </div>
+    <div style="flex:1"></div>
+    <select id="res-app-filter" onchange="filterResultsByApp(this.value)" style="padding:6px 12px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-secondary);font-size:12px;font-family:var(--font-display)">
+      <option value="all">All Applications</option>
+      <option value="CustomerPortal">CustomerPortal</option>
+      <option value="OrderService">OrderService</option>
+      <option value="PaymentGateway">PaymentGateway</option>
+    </select>
+    <button onclick="exportResults()" style="padding:6px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-surface);color:var(--text-muted);font-family:var(--font-display);font-size:12px;cursor:pointer">Export CSV</button>
+  </div>
+
+  <div class="card animate-in delay-3">
+    <div class="card-header">
+      <div class="card-title">Test Case Results</div>
+      <span class="card-badge badge-live" id="res-count-badge">— Tests</span>
+    </div>
+    <div>
+      <div class="result-row result-header">
+        <div>ID</div><div>Test Case</div><div>Suite</div><div>Result</div><div>Duration</div><div>App</div><div>Action</div>
+      </div>
+      <div id="results-list">
+        <div style="text-align:center;padding:60px;color:var(--text-muted)">
+          <div style="font-size:32px;margin-bottom:8px">📋</div>
+          <div>Run test suites to see results here</div>
+        </div>
+      </div>
+    </div>
+    <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">
+      <span id="res-showing">Showing 0 results</span>
+      <button onclick="exportResults()" style="background:none;border:none;color:var(--jarvis-glow);font-size:11px;cursor:pointer;font-family:var(--font-display)">Export Report</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PERFORMANCE PAGE ══════════════════════════════════ -->
+<div id="page-performance" class="page">
+  <div class="section-header animate-in delay-1">
+    <div class="section-title">Performance Testing</div>
+    <div class="section-subtitle">Load testing, latency analysis, and throughput benchmarks for GCP-deployed apps</div>
+  </div>
+
+  <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center" class="animate-in delay-2">
+    <select id="perf-app-select" style="padding:8px 14px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-family:var(--font-display);font-size:13px">
+      <option value="">Select application...</option>
+      <option value="CustomerPortal">CustomerPortal</option>
+      <option value="OrderService">OrderService</option>
+      <option value="PaymentGateway">PaymentGateway</option>
+    </select>
+    <select id="perf-scenario" style="padding:8px 14px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-family:var(--font-display);font-size:13px">
+      <option value="smoke">Smoke (10 VUs, 1 min)</option>
+      <option value="load">Load (100 VUs, 5 min)</option>
+      <option value="stress">Stress (500 VUs, 10 min)</option>
+      <option value="spike">Spike (1000 VUs burst)</option>
+    </select>
+    <div style="flex:1"></div>
+    <button onclick="runPerfTest()" style="padding:8px 18px;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);border-radius:var(--radius-sm);color:var(--accent-amber);font-family:var(--font-display);font-weight:600;font-size:13px;cursor:pointer">▶ Run k6 Test</button>
+  </div>
+
+  <div class="grid-2-1 animate-in delay-3">
+    <div>
+      <!-- Perf Metrics -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px" id="perf-metrics">
+        <div class="metric-card"><div class="metric-label">P50 Latency</div><div class="metric-value" style="color:var(--accent-emerald);font-size:22px" id="p50">—</div></div>
+        <div class="metric-card"><div class="metric-label">P95 Latency</div><div class="metric-value" style="color:var(--accent-amber);font-size:22px" id="p95">—</div></div>
+        <div class="metric-card"><div class="metric-label">Throughput</div><div class="metric-value" style="color:var(--accent-blue);font-size:22px" id="rps">—</div></div>
+        <div class="metric-card"><div class="metric-label">Error Rate</div><div class="metric-value" style="color:var(--accent-red);font-size:22px" id="err-rate">—</div></div>
+      </div>
+
+      <!-- Endpoint Latencies -->
+      <div class="card">
+        <div class="card-header"><div class="card-title">Endpoint Latency Breakdown</div><span class="card-badge badge-warn" id="perf-run-badge">Not Run</span></div>
+        <div class="card-body" id="perf-endpoints">
+          <div style="text-align:center;padding:30px;color:var(--text-muted)">Run a performance test to see endpoint analysis</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <!-- k6 Script Preview -->
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-header">
+          <div class="card-title">k6 Test Script</div>
+          <button onclick="downloadK6Script()" style="font-size:11px;color:var(--accent-emerald);background:none;border:none;cursor:pointer;font-family:var(--font-display)">Download</button>
+        </div>
+        <div style="background:var(--bg-deep);padding:14px;font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);overflow-y:auto;height:200px;line-height:1.6" id="k6-script-preview">
+          <span style="color:var(--text-muted)">// Select app and click Run to generate k6 script</span>
+        </div>
+      </div>
+
+      <!-- Perf Stream -->
+      <div class="card">
+        <div class="card-header"><div class="card-title">Test Run Log</div></div>
+        <div class="agent-stream" id="agent-stream-perf" style="border:none;border-radius:0;height:190px">
+          <div class="agent-stream-line"><span class="stream-time">--:--:--</span><span class="stream-agent stream-info">K6</span><span class="stream-text">Performance tester ready...</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ISSUES PAGE ═══════════════════════════════════════ -->
+<div id="page-issues" class="page">
+  <div class="section-header animate-in delay-1">
+    <div class="section-title">Test Issues Tracker</div>
+    <div class="section-subtitle">Automatically created GitHub issues from test failures, with AI root-cause analysis</div>
+  </div>
+
+  <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center" class="animate-in delay-2">
+    <div style="display:flex;gap:8px">
+      <button class="filter-chip active" onclick="filterIssues('all',this)">All</button>
+      <button class="filter-chip" onclick="filterIssues('open',this)">Open</button>
+      <button class="filter-chip" onclick="filterIssues('in-progress',this)">In Progress</button>
+      <button class="filter-chip" onclick="filterIssues('resolved',this)">Resolved</button>
+    </div>
+    <div style="display:flex;gap:6px">
+      <button class="filter-chip" onclick="filterIssuesBySeverity('critical')">Critical</button>
+      <button class="filter-chip" onclick="filterIssuesBySeverity('high')">High</button>
+      <button class="filter-chip" onclick="filterIssuesBySeverity('medium')">Medium</button>
+    </div>
+    <div style="flex:1"></div>
+    <button onclick="createManualIssue()" style="padding:8px 18px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);border-radius:var(--radius-sm);color:var(--accent-red);font-family:var(--font-display);font-weight:600;font-size:13px;cursor:pointer">+ Create Issue</button>
+  </div>
+
+  <div class="grid-2-1 animate-in delay-3">
+    <div id="issues-list">
+      <div style="text-align:center;padding:80px;color:var(--text-muted)">
+        <div style="font-size:48px;margin-bottom:12px">✓</div>
+        <div style="font-family:var(--font-display);font-weight:600;font-size:16px;margin-bottom:4px">No Issues Found</div>
+        <div style="font-size:13px">Run test suites to automatically generate GitHub issues from failures</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-header"><div class="card-title">Issue Summary</div></div>
+        <div class="card-body" style="padding:12px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;font-family:var(--font-display)">Open</div><div style="font-family:var(--font-mono);font-weight:600;font-size:24px;color:var(--accent-red)" id="iss-open">—</div></div>
+            <div><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;font-family:var(--font-display)">In Progress</div><div style="font-family:var(--font-mono);font-weight:600;font-size:24px;color:var(--accent-amber)" id="iss-inprog">—</div></div>
+            <div><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;font-family:var(--font-display)">Resolved</div><div style="font-family:var(--font-mono);font-weight:600;font-size:24px;color:var(--accent-emerald)" id="iss-resolved">—</div></div>
+            <div><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;font-family:var(--font-display)">Critical</div><div style="font-family:var(--font-mono);font-weight:600;font-size:24px;color:var(--accent-red)" id="iss-critical">—</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Issue Agent Stream</div></div>
+        <div class="agent-stream" id="agent-stream-issues" style="border:none;border-radius:0;height:200px">
+          <div class="agent-stream-line"><span class="stream-time">--:--:--</span><span class="stream-agent stream-info">ISSUE AGENT</span><span class="stream-text">Monitoring test results for failures...</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end main-content -->
+
+<!-- ─── JARVIS CHAT FAB ────────────────────────────────── -->
+<div class="jarvis-fab" id="jarvis-fab"><div class="jarvis-fab-label">Ask J.A.R.V.I.S.</div></div>
+<div class="jarvis-chat" id="jarvis-chat">
+  <div class="jarvis-chat-header">
+    <div class="jarvis-chat-title"><div class="mini-arc"></div><span>J.A.R.V.I.S. — Testing</span></div>
+    <button class="jarvis-chat-close" id="jarvis-chat-close">&times;</button>
+  </div>
+  <div class="jarvis-chat-context" id="jarvis-chat-context">Testing Engine · Smoke · SIT · Performance · UAT · Issues</div>
+  <div class="jarvis-chat-messages" id="jarvis-chat-messages">
+    <div class="jarvis-msg assistant"><div>Hello! I'm the Testing Engine AI. I can help you interpret test results, understand failures, prioritize issues, and plan your testing strategy. What would you like to investigate?</div></div>
+  </div>
+  <div class="jarvis-suggestions">
+    <div class="jarvis-suggestions-label">Quick Questions</div>
+    <button class="jarvis-suggestion" onclick="JarvisChat.sendSuggestion('What is the difference between smoke and SIT?')">Smoke vs SIT testing?</button>
+    <button class="jarvis-suggestion" onclick="JarvisChat.sendSuggestion('How do I interpret p95 latency?')">How to interpret p95 latency?</button>
+    <button class="jarvis-suggestion" onclick="JarvisChat.sendSuggestion('What causes test flakiness?')">What causes test flakiness?</button>
+  </div>
+  <div class="jarvis-chat-input">
+    <input type="text" id="jarvis-chat-input-field" placeholder="Ask about test results, failures, performance...">
+    <button id="jarvis-chat-send">&#10148;</button>
+  </div>
+</div>
+
+<script src="../shared/jarvis.js"></script>
+<script>
+// ── INIT ────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  if (!JarvisAuth.requireAuth()) return;
+  const persona = JarvisAuth.getPersona();
+  if (persona) {
+    document.getElementById('persona-avatar').style.background = persona.gradient || 'linear-gradient(135deg,#10B981,#22D3EE)';
+    document.getElementById('persona-label').textContent = persona.label || 'Testing Engine';
+  }
+  JarvisNav.init('overview');
+  JarvisChat.init();
+  initClock();
+  initUptime();
+  checkBackend();
+  loadDemoData();
+});
+
+function initClock() {
+  const el = document.getElementById('system-clock');
+  const tick = () => { if(el) el.textContent = new Date().toUTCString().slice(0,25)+' UTC'; };
+  tick(); setInterval(tick, 1000);
+}
+
+function initUptime() {
+  const start = Date.now();
+  const el = document.getElementById('system-uptime');
+  setInterval(() => {
+    const s = Math.floor((Date.now()-start)/1000);
+    const h = String(Math.floor(s/3600)).padStart(2,'0');
+    const m = String(Math.floor((s%3600)/60)).padStart(2,'0');
+    const sec = String(s%60).padStart(2,'0');
+    if(el) el.textContent = `${h}:${m}:${sec}`;
+  }, 1000);
+}
+
+async function checkBackend() {
+  const el = document.getElementById('backend-status');
+  try {
+    const r = await fetch('http://localhost:8010/api/health', { signal: AbortSignal.timeout(3000) });
+    if (r.ok) { el.textContent='CONNECTED'; el.style.color='var(--accent-emerald)'; }
+    else { el.textContent='DEGRADED'; el.style.color='var(--accent-amber)'; }
+  } catch(e) {
+    el.textContent='OFFLINE — DEMO MODE'; el.style.color='var(--accent-red)';
+  }
+}
+
+// ── DEMO DATA ────────────────────────────────────────────
+const DEMO_SUITES = {
+  CustomerPortal: [
+    { id:'S-001', type:'smoke',  name:'Smoke Test Suite',         tests:24,  passed:24,  failed:0,  skipped:0,  duration:'1m 12s', status:'passed'  },
+    { id:'S-002', type:'sit',    name:'System Integration Tests',  tests:142, passed:138, failed:3,  skipped:1,  duration:'8m 45s', status:'failed'  },
+    { id:'S-003', type:'perf',   name:'Performance Baseline',      tests:8,   passed:7,   failed:1,  skipped:0,  duration:'12m 0s', status:'failed'  },
+    { id:'S-004', type:'uat',    name:'UAT Acceptance Tests',      tests:56,  passed:54,  failed:1,  skipped:1,  duration:'22m 3s', status:'running' },
+  ],
+  OrderService: [
+    { id:'S-005', type:'smoke',  name:'Smoke Test Suite',         tests:18,  passed:18,  failed:0,  skipped:0,  duration:'45s',    status:'passed'  },
+    { id:'S-006', type:'sit',    name:'System Integration Tests',  tests:89,  passed:89,  failed:0,  skipped:0,  duration:'4m 30s', status:'passed'  },
+    { id:'S-007', type:'perf',   name:'Performance Baseline',      tests:5,   passed:5,   failed:0,  skipped:0,  duration:'8m 0s',  status:'passed'  },
+  ],
+  PaymentGateway: [
+    { id:'S-008', type:'smoke',  name:'Smoke Test Suite',         tests:30,  passed:28,  failed:2,  skipped:0,  duration:'2m 0s',  status:'failed'  },
+    { id:'S-009', type:'sit',    name:'Integration + Security',    tests:210, passed:195, failed:12, skipped:3,  duration:'15m 0s', status:'failed'  },
+    { id:'S-010', type:'reg',    name:'Regression Suite',          tests:180, passed:180, failed:0,  skipped:0,  duration:'18m 0s', status:'passed'  },
+  ],
+};
+
+const DEMO_RESULTS = [
+  { id:'TC-001', name:'Login endpoint returns 200', suite:'Smoke',   result:'passed', duration:'234ms', app:'CustomerPortal' },
+  { id:'TC-002', name:'Order creation API validates items', suite:'SIT', result:'passed', duration:'1.2s', app:'CustomerPortal' },
+  { id:'TC-003', name:'Database connection pool exhaustion', suite:'SIT', result:'failed', duration:'30s', app:'CustomerPortal' },
+  { id:'TC-004', name:'Pub/Sub message delivery latency <500ms', suite:'Perf', result:'failed', duration:'12m', app:'CustomerPortal' },
+  { id:'TC-005', name:'User session persistence across regions', suite:'UAT', result:'passed', duration:'456ms', app:'CustomerPortal' },
+  { id:'TC-006', name:'Payment processing within 2s SLA', suite:'SIT', result:'failed', duration:'4.1s', app:'PaymentGateway' },
+  { id:'TC-007', name:'Order status webhook delivery', suite:'SIT', result:'passed', duration:'780ms', app:'OrderService' },
+  { id:'TC-008', name:'Authentication token refresh', suite:'Smoke', result:'passed', duration:'189ms', app:'AuthService' },
+  { id:'TC-009', name:'Inventory count update atomicity', suite:'SIT', result:'passed', duration:'340ms', app:'InventoryAPI' },
+  { id:'TC-010', name:'Report generation under load', suite:'Perf', result:'passed', duration:'3.2s', app:'ReportingEngine' },
+];
+
+const DEMO_ISSUES = [
+  { id:'ISS-001', title:'Connection pool exhausted under load', app:'CustomerPortal', type:'SIT Failure', severity:'critical', status:'open',        desc:'At 100 concurrent users, Cloud SQL connection pool (max=20) is exhausted. Recommend increasing pool size or adding pgbouncer.', created:'2025-02-19' },
+  { id:'ISS-002', title:'Pub/Sub message latency exceeds 500ms SLA', app:'CustomerPortal', type:'Perf Failure', severity:'high', status:'in-progress', desc:'P95 latency for Pub/Sub message acknowledgment is 892ms vs 500ms SLA. Investigate subscriber throughput settings.', created:'2025-02-19' },
+  { id:'ISS-003', title:'Payment gateway 2s SLA breach', app:'PaymentGateway', type:'SIT Failure', severity:'critical', status:'open',        desc:'Payment processing averages 4.1s on GCP vs 1.8s on Azure. Suspected cause: Cloud SQL cold start, consider Cloud SQL Proxy optimization.', created:'2025-02-20' },
+  { id:'ISS-004', title:'Smoke test: /health endpoint timeout (smoke)', app:'PaymentGateway', type:'Smoke Failure', severity:'high', status:'open', desc:'Health check endpoint times out after 200ms. GCE startup script taking longer than expected. Health check delay needs adjustment.', created:'2025-02-20' },
+  { id:'ISS-005', title:'UAT: User cannot complete checkout flow', app:'CustomerPortal', type:'UAT Failure', severity:'medium', status:'in-progress', desc:'Step 3 of checkout fails intermittently due to session affinity misconfiguration on GCP Load Balancer.', created:'2025-02-21' },
+];
+
+window._demoSuites  = DEMO_SUITES;
+window._demoResults = DEMO_RESULTS;
+window._demoIssues  = DEMO_ISSUES;
+window._resultFilter = 'all';
+window._issueFilter  = 'all';
+
+function loadDemoData() {
+  // KPIs
+  const allResults = DEMO_RESULTS;
+  const passed     = allResults.filter(r=>r.result==='passed').length;
+  const failed     = allResults.filter(r=>r.result==='failed').length;
+  document.getElementById('kpi-suites').textContent      = '10';
+  document.getElementById('kpi-total-run').textContent   = allResults.length;
+  document.getElementById('kpi-passed').textContent      = passed;
+  document.getElementById('kpi-pass-pct').textContent    = Math.round(passed/allResults.length*100)+'%';
+  document.getElementById('kpi-failed').textContent      = failed;
+  document.getElementById('kpi-fail-pct').textContent    = Math.round(failed/allResults.length*100)+'%';
+  document.getElementById('kpi-skipped').textContent     = '5';
+  document.getElementById('kpi-coverage').textContent    = '78%';
+  document.getElementById('kpi-issues').textContent      = DEMO_ISSUES.filter(i=>i.status!=='resolved').length;
+  document.getElementById('kpi-dur').textContent         = '9.2m';
+
+  // Overview metrics
+  const passRate = Math.round(passed/(passed+failed)*100);
+  document.getElementById('ov-pass-rate').textContent  = passRate+'%';
+  document.getElementById('ov-active').textContent     = '1';
+  document.getElementById('ov-resp').textContent       = '342ms';
+  document.getElementById('ov-bugs').textContent       = DEMO_ISSUES.filter(i=>i.status==='open').length;
+  document.getElementById('ov-uat').textContent        = '1 / 6';
+
+  // Issue counts
+  document.getElementById('iss-open').textContent      = DEMO_ISSUES.filter(i=>i.status==='open').length;
+  document.getElementById('iss-inprog').textContent    = DEMO_ISSUES.filter(i=>i.status==='in-progress').length;
+  document.getElementById('iss-resolved').textContent  = DEMO_ISSUES.filter(i=>i.status==='resolved').length;
+  document.getElementById('iss-critical').textContent  = DEMO_ISSUES.filter(i=>i.severity==='critical').length;
+
+  renderOverviewSuites();
+  renderAppResultsTable();
+  renderResults(DEMO_RESULTS);
+  renderIssues(DEMO_ISSUES);
+  startOverviewStream();
+}
+
+function renderOverviewSuites() {
+  const apps = Object.keys(DEMO_SUITES);
+  const rows = apps.map(app => {
+    const suites = DEMO_SUITES[app];
+    const totalPass = suites.reduce((s,x)=>s+x.passed,0);
+    const totalFail = suites.reduce((s,x)=>s+x.failed,0);
+    const totalAll  = totalPass + totalFail;
+    const pct = totalAll > 0 ? Math.round(totalPass/totalAll*100) : 100;
+    const hasFail = suites.some(s=>s.status==='failed');
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="width:8px;height:8px;border-radius:50%;background:${hasFail?'var(--accent-red)':'var(--accent-emerald)'}"></div>
+      <div style="flex:1;font-size:13px;font-weight:500">${app}</div>
+      <div style="font-family:var(--font-mono);font-size:12px;color:${hasFail?'var(--accent-red)':'var(--accent-emerald)'}">${pct}%</div>
+      <div style="width:80px;height:6px;background:var(--bg-elevated);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${hasFail?'var(--accent-amber)':'var(--accent-emerald)'};border-radius:3px"></div>
+      </div>
+    </div>`;
+  });
+  document.getElementById('ov-suite-status').innerHTML = rows.join('');
+}
+
+function renderAppResultsTable() {
+  const appData = {
+    CustomerPortal:  { smoke:'passed', sit:'failed',  perf:'failed', uat:'running', issues:3 },
+    OrderService:    { smoke:'passed', sit:'passed',  perf:'passed', uat:'—',      issues:0 },
+    PaymentGateway:  { smoke:'failed', sit:'failed',  perf:'—',      uat:'—',      issues:2 },
+    InventoryAPI:    { smoke:'—',      sit:'—',       perf:'—',      uat:'—',      issues:0 },
+    AuthService:     { smoke:'passed', sit:'—',       perf:'—',      uat:'—',      issues:0 },
+    ReportingEngine: { smoke:'—',      sit:'—',       perf:'passed', uat:'—',      issues:0 },
+  };
+  const statusLabel = {
+    passed: `<span style="color:var(--accent-emerald);font-weight:600">✓</span>`,
+    failed: `<span style="color:var(--accent-red);font-weight:600">✗</span>`,
+    running:`<span style="color:var(--jarvis-glow)">▶</span>`,
+    '—':    `<span style="color:var(--text-muted)">—</span>`,
+  };
+  const overall = (d) => {
+    if (Object.values(d).slice(0,4).some(v=>v==='failed'))  return `<span class="status-pill status-at-risk">At Risk</span>`;
+    if (Object.values(d).slice(0,4).some(v=>v==='running')) return `<span class="status-pill status-running">Running</span>`;
+    if (Object.values(d).slice(0,4).every(v=>v==='passed' || v==='—')) return `<span class="status-pill status-active">Passing</span>`;
+    return `<span class="status-pill status-pending">Pending</span>`;
+  };
+  document.getElementById('app-results-table').innerHTML = Object.entries(appData).map(([app,d]) => `
+    <tr class="clickable-row" onclick="openAppTestDetail('${app}')">
+      <td style="font-family:var(--font-display);font-weight:500">${app}</td>
+      <td>${statusLabel[d.smoke]}</td>
+      <td>${statusLabel[d.sit]}</td>
+      <td>${statusLabel[d.perf]}</td>
+      <td>${statusLabel[d.uat]}</td>
+      <td>${overall(d)}</td>
+      <td><span style="font-family:var(--font-mono);font-size:12px;color:${d.issues>0?'var(--accent-red)':'var(--text-muted)'}">${d.issues} issues</span></td>
+      <td><button onclick="event.stopPropagation();runAppSuites('${app}')" style="font-size:10px;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:none;color:var(--text-muted);cursor:pointer">Run</button></td>
+    </tr>`).join('');
+}
+
+function renderResults(results) {
+  const filtered = window._resultFilter && window._resultFilter !== 'all'
+    ? results.filter(r => r.result === window._resultFilter)
+    : results;
+  document.getElementById('res-count-badge').textContent = filtered.length+' Tests';
+  document.getElementById('res-showing').textContent = `Showing ${filtered.length} of ${results.length} tests`;
+  const colors = { passed:'var(--accent-emerald)', failed:'var(--accent-red)', skipped:'var(--text-muted)' };
+  document.getElementById('results-list').innerHTML = filtered.map(r => `
+    <div class="result-row" onclick="openResultDetail('${r.id}')">
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">${r.id}</div>
+      <div style="font-size:12px">${r.name}</div>
+      <div style="font-size:11px;color:var(--text-muted)">${r.suite}</div>
+      <div class="${r.result==='passed'?'result-pass':r.result==='failed'?'result-fail':'result-skip'}" style="text-transform:capitalize">${r.result}</div>
+      <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">${r.duration}</div>
+      <div style="font-size:11px;color:var(--text-secondary)">${r.app}</div>
+      <div><button onclick="event.stopPropagation();openResultDetail('${r.id}')" style="font-size:10px;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:none;color:var(--text-muted);cursor:pointer">View</button></div>
+    </div>`).join('') || `<div style="padding:40px;text-align:center;color:var(--text-muted)">No ${window._resultFilter} tests found</div>`;
+}
+
+function renderIssues(issues) {
+  const f = window._issueFilter && window._issueFilter !== 'all' ? issues.filter(i=>i.status===window._issueFilter) : issues;
+  const severityColor = { critical:'var(--accent-red)', high:'var(--accent-amber)', medium:'var(--accent-blue)', low:'var(--text-muted)' };
+  const statusColor   = { open:'var(--accent-red)', 'in-progress':'var(--accent-amber)', resolved:'var(--accent-emerald)' };
+  document.getElementById('issues-list').innerHTML = f.length ? f.map(iss => `
+    <div class="issue-card ${iss.severity}" onclick="openIssueDetail('${iss.id}')">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px">
+        <div class="issue-title">${iss.title}</div>
+        <div style="display:flex;gap:6px;flex-shrink:0;margin-left:12px">
+          <span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:rgba(${iss.severity==='critical'?'239,68,68':iss.severity==='high'?'245,158,11':'59,130,246'},0.12);color:${severityColor[iss.severity]};font-family:var(--font-mono);text-transform:uppercase">${iss.severity}</span>
+          <span style="font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;background:var(--bg-elevated);color:${statusColor[iss.status]||'var(--text-muted)'};font-family:var(--font-mono);text-transform:capitalize">${iss.status}</span>
+        </div>
+      </div>
+      <div class="issue-desc">${iss.desc}</div>
+      <div class="issue-meta">
+        <span style="color:var(--text-muted)">${iss.id}</span>
+        <span style="color:var(--accent-cyan)">${iss.app}</span>
+        <span style="color:var(--text-muted)">${iss.type}</span>
+        <span style="color:var(--text-muted)">${iss.created}</span>
+      </div>
+    </div>`).join('') : `<div style="padding:60px;text-align:center;color:var(--text-muted)">No ${window._issueFilter} issues found</div>`;
+}
+
+// ── STREAM ────────────────────────────────────────────────
+function startOverviewStream() {
+  const lines = [
+    { agent:'SMOKE', text:'CustomerPortal: All 24 smoke tests passed ✓', type:'success' },
+    { agent:'SIT', text:'CustomerPortal: 3 integration tests failed — see results', type:'warn' },
+    { agent:'PERF', text:'CustomerPortal: P95 latency 892ms exceeds 500ms SLA', type:'error' },
+    { agent:'UAT', text:'CustomerPortal: UAT in progress — 54/56 test cases passed', type:'info' },
+    { agent:'ISSUE AGENT', text:'GitHub issue created: ISS-001 — Connection pool exhausted', type:'warn' },
+  ];
+  let i = 0;
+  const go = () => {
+    if (i < lines.length) {
+      JarvisStream.appendLine('agent-stream-ov', lines[i++]);
+      setTimeout(go, 1400);
+    }
+  };
+  setTimeout(go, 600);
+}
+
+// ── SUITE ACTIONS ─────────────────────────────────────────
+function loadSuites(app) {
+  if (!app) return;
+  const suites = DEMO_SUITES[app] || [];
+  if (!suites.length) {
+    document.getElementById('suites-list').innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-muted)">No suites configured for ${app}</div>`;
+    return;
+  }
+
+  const typeColors = { smoke:'type-smoke', sit:'type-sit', perf:'type-perf', uat:'type-uat', reg:'type-reg' };
+  const statusColors = { passed:'var(--accent-emerald)', failed:'var(--accent-red)', running:'var(--jarvis-glow)', pending:'var(--text-muted)' };
+  document.getElementById('suites-list').innerHTML = `
+    <div style="font-family:var(--font-display);font-weight:600;font-size:14px;margin-bottom:12px">${app} — Test Suites</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      ${suites.map(s=>`
+        <div class="suite-card ${s.status}">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px">
+            <div>
+              <span class="suite-type ${typeColors[s.type]||'type-reg'}">${s.type.toUpperCase()}</span>
+              <div style="font-family:var(--font-display);font-weight:600;font-size:14px">${s.name}</div>
+              <div style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono);margin-top:2px">Duration: ${s.duration}</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-family:var(--font-mono);font-weight:700;font-size:16px;color:${statusColors[s.status]};text-transform:capitalize">${s.status}</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${s.tests} tests</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:16px;font-size:12px;margin-bottom:10px;">
+            <span style="color:var(--accent-emerald)">✓ ${s.passed} passed</span>
+            ${s.failed?`<span style="color:var(--accent-red)">✗ ${s.failed} failed</span>`:''}
+            ${s.skipped?`<span style="color:var(--text-muted)">— ${s.skipped} skipped</span>`:''}
+          </div>
+          <div style="height:6px;background:var(--bg-elevated);border-radius:3px;overflow:hidden;margin-bottom:10px">
+            <div style="height:100%;width:${Math.round(s.passed/s.tests*100)}%;background:${s.failed?'var(--gradient-amber)':'var(--gradient-green)'};border-radius:3px"></div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button onclick="runSingleSuite('${s.id}','${app}')" style="padding:6px 14px;background:var(--gradient-green);border:none;border-radius:var(--radius-sm);color:white;font-family:var(--font-display);font-weight:600;font-size:12px;cursor:pointer">▶ Run</button>
+            <button onclick="viewSuiteResults('${s.id}')" style="padding:6px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:none;color:var(--text-muted);font-family:var(--font-display);font-size:12px;cursor:pointer">View Results</button>
+            ${s.failed?`<button onclick="createIssueFromSuite('${s.id}','${app}')" style="padding:6px 14px;border:1px solid rgba(239,68,68,0.3);border-radius:var(--radius-sm);background:rgba(239,68,68,0.08);color:var(--accent-red);font-family:var(--font-display);font-size:12px;cursor:pointer">Create Issue</button>`:''}
+          </div>
+        </div>`).join('')}
+    </div>`;
+}
+
+function runSingleSuite(id, app) {
+  JarvisNotify.agent(`Running suite ${id} for ${app}...`);
+  JarvisStream.appendLine('agent-stream-suites', { agent:'TEST RUNNER', text:`Executing suite ${id} — ${app}...`, type:'info' });
+  document.getElementById('running-tests').textContent = '1';
+  let elapsed = 0;
+  const interval = setInterval(() => {
+    elapsed++;
+    JarvisStream.appendLine('agent-stream-suites', { agent:'TEST RUNNER', text:`[${elapsed}s] Running test cases...`, type:'info' });
+    if (elapsed >= 3) {
+      clearInterval(interval);
+      JarvisStream.appendLine('agent-stream-suites', { agent:'TEST RUNNER', text:`Suite ${id} complete`, type:'success' });
+      JarvisNotify.success(`Suite ${id} complete for ${app}`);
+      document.getElementById('running-tests').textContent = '0';
+    }
+  }, 1000);
+}
+
+function runSelectedSuites() {
+  const app = document.getElementById('suite-app-select').value;
+  if (!app) { JarvisNotify.warn('Select an application first'); return; }
+  JarvisNotify.agent(`Running all suites for ${app}...`);
+  JarvisStream.appendLine('agent-stream-suites', { agent:'ORCHESTRATOR', text:`Running all suites for ${app}...`, type:'info' });
+  setTimeout(() => {
+    JarvisNotify.success(`All suites complete for ${app}`);
+    JarvisStream.appendLine('agent-stream-suites', { agent:'ORCHESTRATOR', text:`All suites complete for ${app}`, type:'success' });
+  }, 3000);
+}
+
+function runAllSuites() {
+  JarvisNotify.agent('Running all test suites across all applications...');
+  setTimeout(() => JarvisNotify.success('All suites queued for execution'), 1200);
+}
+
+function runAppSuites(app) {
+  JarvisNotify.agent(`Running all suites for ${app}...`);
+  JarvisNav.showPage('suites');
+  document.getElementById('suite-app-select').value = app;
+  loadSuites(app);
+}
+
+function viewSuiteResults(id) {
+  JarvisNav.showPage('results');
+  JarvisNotify.info(`Showing results for suite ${id}`);
+}
+
+function generateSyntheticData() {
+  JarvisNotify.agent('Generating synthetic test data with Claude AI...');
+  setTimeout(() => JarvisNotify.success('Synthetic data generated: 500 user records, 1200 orders, 50 products'), 2000);
+}
+
+function createIssueFromSuite(suiteId, app) {
+  JarvisNotify.agent(`Creating GitHub issue for failed suite ${suiteId}...`);
+  JarvisStream.appendLine('agent-stream-issues', { agent:'ISSUE AGENT', text:`Creating issue for ${app} suite ${suiteId} failure`, type:'warn' });
+  setTimeout(() => {
+    JarvisNotify.success('GitHub issue created automatically');
+    JarvisNav.showPage('issues');
+  }, 1200);
+}
+
+// ── RESULT FILTERS ────────────────────────────────────────
+function filterResults(f, btn) {
+  document.querySelectorAll('#page-results .filter-chip').forEach(c=>c.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  window._resultFilter = f;
+  renderResults(DEMO_RESULTS);
+}
+
+function filterResultsByApp(val) {
+  const res = val==='all' ? DEMO_RESULTS : DEMO_RESULTS.filter(r=>r.app===val);
+  renderResults(res);
+}
+
+function filterIssues(f, btn) {
+  document.querySelectorAll('#page-issues .filter-chip').forEach(c=>c.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  window._issueFilter = f;
+  renderIssues(DEMO_ISSUES);
+}
+
+function filterIssuesBySeverity(sev) {
+  const issues = DEMO_ISSUES.filter(i=>i.severity===sev);
+  renderIssues(issues);
+}
+
+// ── PERFORMANCE TEST ──────────────────────────────────────
+const K6_SCRIPT = (app, scenario) => `import http from 'k6/http';
+import { check, sleep } from 'k6';
+
+// J.A.R.V.I.S. Generated k6 Performance Test
+// Application: ${app}
+// Scenario: ${scenario}
+
+export const options = {
+  ${scenario==='smoke' ? "vus: 10, duration: '1m'," :
+    scenario==='load'  ? "vus: 100, duration: '5m'," :
+    scenario==='stress'? `stages: [
+    { duration: '2m', target: 100 },
+    { duration: '5m', target: 300 },
+    { duration: '2m', target: 500 },
+    { duration: '1m', target: 0 },
+  ],` :
+    `stages: [
+    { duration: '1m', target: 100 },
+    { duration: '30s', target: 1000 },
+    { duration: '1m', target: 0 },
+  ],`}
+  thresholds: {
+    http_req_duration: ['p(95)<500'],
+    http_req_failed:   ['rate<0.01'],
+  },
+};
+
+const BASE_URL = 'https://${app.toLowerCase()}.gcp.example.com';
+
+export default function () {
+  // Health check
+  const health = http.get(BASE_URL + '/actuator/health');
+  check(health, { 'health status 200': (r) => r.status === 200 });
+
+  // Main flow
+  const res = http.get(BASE_URL + '/api/v1/ping');
+  check(res, {
+    'status 200':        (r) => r.status === 200,
+    'latency < 500ms':   (r) => r.timings.duration < 500,
+  });
+
+  sleep(1);
+}`;
+
+function runPerfTest() {
+  const app = document.getElementById('perf-app-select').value;
+  const scenario = document.getElementById('perf-scenario').value;
+  if (!app) { JarvisNotify.warn('Select an application first'); return; }
+
+  document.getElementById('k6-script-preview').textContent = K6_SCRIPT(app, scenario);
+  document.getElementById('perf-run-badge').textContent = 'Running...';
+  document.getElementById('perf-run-badge').style.background = 'rgba(56,189,248,0.15)';
+  document.getElementById('perf-run-badge').style.color = 'var(--jarvis-glow)';
+
+  JarvisNotify.agent(`Running k6 ${scenario} test for ${app}...`);
+  JarvisStream.appendLine('agent-stream-perf', { agent:'K6', text:`Starting ${scenario} test for ${app}...`, type:'info' });
+
+  let t = 0;
+  const msgs = ['Initializing virtual users...', 'Ramping up load...', 'Measuring latency...', 'Collecting metrics...', 'Generating report...'];
+  const stream = setInterval(() => {
+    if (t < msgs.length) {
+      JarvisStream.appendLine('agent-stream-perf', { agent:'K6', text:msgs[t++], type:'info' });
+    } else {
+      clearInterval(stream);
+      finishPerfTest(app, scenario);
+    }
+  }, 900);
+}
+
+function finishPerfTest(app, scenario) {
+  const p50 = Math.round(120 + Math.random()*100);
+  const p95 = Math.round(p50 * 2.5 + Math.random()*200);
+  const rps  = Math.round(200 + Math.random()*300);
+  const err  = (Math.random() * 2).toFixed(2);
+
+  document.getElementById('p50').textContent = p50+'ms';
+  document.getElementById('p95').textContent = p95+'ms';
+  document.getElementById('rps').textContent = rps+'/s';
+  document.getElementById('err-rate').textContent = err+'%';
+
+  document.getElementById('perf-run-badge').textContent = 'Complete';
+  document.getElementById('perf-run-badge').style.background = 'rgba(16,185,129,0.15)';
+  document.getElementById('perf-run-badge').style.color = 'var(--accent-emerald)';
+
+  const endpoints = ['/api/v1/ping','/api/v1/users','/api/v1/orders','/actuator/health'];
+  document.getElementById('perf-endpoints').innerHTML = endpoints.map(e => {
+    const lat = Math.round(50 + Math.random()*600);
+    const ok  = lat < 500;
+    return `<div class="perf-bar-row">
+      <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);min-width:180px">${e}</div>
+      <div class="perf-bar-wrap"><div class="perf-bar-fill" style="width:${Math.min(lat/600*100,100)}%;background:${ok?'var(--accent-emerald)':'var(--accent-red)'}"></div></div>
+      <div style="font-family:var(--font-mono);font-size:11px;min-width:60px;text-align:right;color:${ok?'var(--accent-emerald)':'var(--accent-red)'}">${lat}ms</div>
+    </div>`;
+  }).join('');
+
+  JarvisStream.appendLine('agent-stream-perf', { agent:'K6', text:`Test complete — P50:${document.getElementById('p50').textContent} P95:${document.getElementById('p95').textContent} RPS:${document.getElementById('rps').textContent}`, type:'success' });
+  JarvisNotify.success(`Performance test complete for ${app}`);
+  if (p95 > 500) {
+    JarvisNotify.warn(`P95 latency (${document.getElementById('p95').textContent}) exceeds 500ms SLA`);
+    JarvisStream.appendLine('agent-stream-perf', { agent:'ISSUE AGENT', text:'SLA breach detected — creating GitHub issue', type:'warn' });
+  }
+}
+
+function downloadK6Script() {
+  const app      = document.getElementById('perf-app-select').value || 'app';
+  const scenario = document.getElementById('perf-scenario').value || 'load';
+  const code     = K6_SCRIPT(app, scenario);
+  const blob = new Blob([code], { type:'text/javascript' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a'); a.href=url; a.download=`k6-${app}-${scenario}.js`; a.click();
+  JarvisNotify.success('k6 script downloaded');
+}
+
+// ── DETAIL PANELS ─────────────────────────────────────────
+function openResultDetail(id) {
+  const r = DEMO_RESULTS.find(x=>x.id===id);
+  if (!r) return;
+  const color = { passed:'var(--accent-emerald)', failed:'var(--accent-red)', skipped:'var(--text-muted)' }[r.result];
+  JarvisPanel.open(r.name, () => `
+    <div class="panel-header">
+      <div class="panel-title">${r.name}</div>
+      <div class="panel-subtitle">${r.id} · ${r.app}</div>
+    </div>
+    <div class="panel-metric-strip">
+      <div class="panel-metric"><div class="panel-metric-label">Result</div><div class="panel-metric-value" style="color:${color};text-transform:capitalize">${r.result}</div></div>
+      <div class="panel-metric"><div class="panel-metric-label">Duration</div><div class="panel-metric-value">${r.duration}</div></div>
+      <div class="panel-metric"><div class="panel-metric-label">Suite</div><div class="panel-metric-value">${r.suite}</div></div>
+    </div>
+    ${r.result==='failed'?`<div class="panel-section">
+      <div class="panel-section-title">Failure Details</div>
+      <div style="background:var(--bg-deep);padding:12px;border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:11px;color:var(--accent-red);line-height:1.6">
+AssertionError: Expected 200 but got 503\n  at TestRunner.runTest (runner.js:142)\n  at Suite.execute (suite.js:88)\n  at async TestOrchestrator.run (orchestrator.js:56)
+      </div>
+    </div>`:'' }
+    <div style="margin-top:16px;display:flex;gap:8px">
+      ${r.result==='failed'?`<button onclick="createIssueFromResult('${r.id}')" style="flex:1;padding:10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:var(--radius-sm);color:var(--accent-red);font-family:var(--font-display);font-weight:600;font-size:13px;cursor:pointer">Create GitHub Issue</button>`:''}
+      <button onclick="JarvisPanel.close()" style="flex:1;padding:10px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-secondary);font-family:var(--font-display);font-weight:600;font-size:13px;cursor:pointer">Close</button>
+    </div>
+  `, ['Testing Engine', 'Test Results']);
+}
+
+function openIssueDetail(id) {
+  const iss = DEMO_ISSUES.find(i=>i.id===id);
+  if (!iss) return;
+  const severityColor = { critical:'var(--accent-red)', high:'var(--accent-amber)', medium:'var(--accent-blue)' };
+  JarvisPanel.open(iss.title, () => `
+    <div class="panel-header">
+      <div class="panel-title">${iss.title}</div>
+      <div class="panel-subtitle">${iss.id} · ${iss.app}</div>
+    </div>
+    <div class="panel-metric-strip">
+      <div class="panel-metric"><div class="panel-metric-label">Severity</div><div class="panel-metric-value" style="color:${severityColor[iss.severity]||'var(--text-muted)'};text-transform:capitalize">${iss.severity}</div></div>
+      <div class="panel-metric"><div class="panel-metric-label">Status</div><div class="panel-metric-value" style="text-transform:capitalize">${iss.status}</div></div>
+      <div class="panel-metric"><div class="panel-metric-label">Type</div><div class="panel-metric-value">${iss.type}</div></div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-section-title">Description</div>
+      <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;padding:12px;background:var(--bg-surface);border-radius:var(--radius-sm);border:1px solid var(--border)">${iss.desc}</div>
+    </div>
+    <div class="panel-section" style="margin-top:16px">
+      <div class="panel-section-title">AI Root Cause Analysis</div>
+      <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;padding:12px;background:rgba(139,92,246,0.05);border:1px solid rgba(139,92,246,0.2);border-radius:var(--radius-sm)">
+        Analyzing failure patterns with Claude AI... This issue appears to be related to infrastructure configuration in the GCP migration. Recommend reviewing the Cloud SQL connection pool settings and ensuring the application's connection string matches the GCP environment.
+      </div>
+    </div>
+    <div style="margin-top:16px;display:flex;gap:8px">
+      <button onclick="markInProgress('${iss.id}')" style="flex:1;padding:10px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:var(--radius-sm);color:var(--accent-amber);font-family:var(--font-display);font-weight:600;font-size:13px;cursor:pointer">Mark In Progress</button>
+      <button onclick="JarvisPanel.close()" style="padding:10px 20px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-secondary);font-family:var(--font-display);font-weight:600;font-size:13px;cursor:pointer">Close</button>
+    </div>
+  `, ['Testing Engine', 'Issues']);
+}
+
+function openAppTestDetail(app) {
+  JarvisNav.showPage('suites');
+  document.getElementById('suite-app-select').value = app;
+  loadSuites(app);
+}
+
+function createIssueFromResult(id) {
+  JarvisPanel.close();
+  JarvisNotify.agent('Creating GitHub issue from test failure...');
+  JarvisStream.appendLine('agent-stream-issues', { agent:'ISSUE AGENT', text:`Auto-creating issue from test ${id}`, type:'warn' });
+  setTimeout(() => JarvisNotify.success('GitHub issue created'), 1200);
+}
+
+function createManualIssue() {
+  JarvisNotify.info('Issue creation dialog — coming soon');
+}
+
+function markInProgress(id) {
+  const iss = DEMO_ISSUES.find(i=>i.id===id);
+  if (iss) { iss.status='in-progress'; renderIssues(DEMO_ISSUES); }
+  JarvisNotify.info(`Issue ${id} marked as in-progress`);
+  JarvisPanel.close();
+}
+
+function exportResults() {
+  const csv = ['ID,Name,Suite,Result,Duration,App', ...DEMO_RESULTS.map(r=>`${r.id},"${r.name}",${r.suite},${r.result},${r.duration},${r.app}`)].join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='test-results.csv'; a.click();
+  JarvisNotify.success('CSV exported');
+}
+</script>
+</body>
+</html>

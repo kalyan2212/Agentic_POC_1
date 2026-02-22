@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J.A.R.V.I.S. — PMO Reporting Engine</title>
+<link rel="stylesheet" href="../shared/jarvis.css">
+<style>
+/* ─── AGENT STREAM ──────────────────────────── */
+.agent-stream {
+  background: var(--bg-deep); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 12px;
+  height: 220px; overflow-y: auto;
+  font-family: var(--font-mono); font-size: 11px;
+}
+.agent-stream-line { display: flex; gap: 10px; padding: 2px 0; }
+.stream-time    { color: var(--text-muted); flex-shrink: 0; }
+.stream-agent   { font-weight: 600; flex-shrink: 0; min-width: 120px; }
+.stream-info    { color: var(--jarvis-glow); }
+.stream-success { color: var(--accent-emerald); }
+.stream-warn    { color: var(--accent-amber); }
+.stream-error   { color: var(--accent-red); }
+.stream-text    { color: var(--text-secondary); flex: 1; white-space: pre-wrap; word-break: break-all; }
+
+/* ─── PHASE CARD ──────────────────────────────── */
+.phase-card {
+  padding: 18px 20px; border: 1px solid var(--border);
+  border-radius: var(--radius-md); background: var(--bg-primary);
+  border-left: 4px solid transparent; margin-bottom: 10px;
+  cursor: pointer; transition: all 0.2s;
+}
+.phase-card:hover { border-color: var(--border-light); }
+.phase-card.complete  { border-left-color: var(--accent-emerald); }
+.phase-card.active    { border-left-color: var(--accent-amber); }
+.phase-card.upcoming  { border-left-color: var(--border); }
+.phase-card.at-risk   { border-left-color: var(--accent-red); }
+
+/* ─── RISK MATRIX ────────────────────────────── */
+.risk-item {
+  display: grid; grid-template-columns: 60px 1fr 80px 80px 80px 60px;
+  gap: 8px; align-items: center; padding: 10px 16px;
+  font-size: 12px; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: all 0.15s;
+  border-left: 3px solid transparent;
+}
+.risk-item:hover { background: var(--bg-elevated); }
+.risk-item.critical { border-left-color: var(--accent-red); }
+.risk-item.high     { border-left-color: var(--accent-amber); }
+.risk-item.medium   { border-left-color: var(--accent-blue); }
+.heat-cell {
+  width: 30px; height: 30px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700; font-family: var(--font-mono);
+}
+
+/* ─── BUDGET BAR ─────────────────────────────── */
+.budget-row {
+  display: grid; grid-template-columns: 120px 1fr 80px 80px 60px;
+  gap: 10px; align-items: center; padding: 10px 0;
+  border-bottom: 1px solid var(--border); font-size: 12px;
+}
+.budget-row:last-child { border-bottom: none; }
+.budget-bar-wrap  { height: 10px; background: var(--bg-elevated); border-radius: 5px; overflow: hidden; position: relative; }
+.budget-bar-plan  { position: absolute; height: 100%; border-radius: 5px; background: var(--bg-elevated); }
+.budget-bar-actual { position: absolute; height: 100%; border-radius: 5px; transition: width 0.8s ease; }
+
+/* ─── GANTT ──────────────────────────────────── */
+.gantt-row {
+  display: grid; grid-template-columns: 160px 1fr;
+  gap: 0; align-items: center; border-bottom: 1px solid var(--border);
+  height: 36px;
+}
+.gantt-label { padding: 0 12px; font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-right: 1px solid var(--border); }
+.gantt-track { position: relative; height: 100%; }
+.gantt-bar   { position: absolute; height: 18px; top: 9px; border-radius: 4px; display: flex; align-items: center; padding: 0 6px; font-size: 10px; font-weight: 600; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: all 0.6s ease; }
+.gantt-today { position: absolute; width: 2px; height: 100%; background: var(--accent-amber); opacity: 0.8; top: 0; }
+.gantt-month { position: absolute; top: 0; height: 100%; font-size: 9px; color: var(--text-muted); font-family: var(--font-mono); display: flex; align-items: flex-start; padding-top: 2px; border-left: 1px solid var(--border); pointer-events: none; }
+
+/* ─── EXEC REPORT ────────────────────────────── */
+.report-section { margin-bottom: 24px; padding: 20px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.report-section h3 { font-family: var(--font-display); font-weight: 700; font-size: 16px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.report-kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 16px; }
+.report-kpi { padding: 14px; background: var(--bg-surface); border-radius: var(--radius-sm); text-align: center; }
+.report-kpi-val { font-family: var(--font-mono); font-size: 24px; font-weight: 700; }
+.report-kpi-lbl { font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-family: var(--font-display); margin-top: 4px; }
+
+/* ─── METRIC CARD ────────────────────────────── */
+.metric-card { padding: 16px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.metric-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 6px; font-family: var(--font-display); }
+.metric-value { font-family: var(--font-mono); font-weight: 700; font-size: 26px; line-height: 1; }
+.metric-sub   { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+/* ─── FILTER CHIP ────────────────────────────── */
+.filter-chip {
+  padding: 5px 12px; border-radius: 20px;
+  border: 1px solid var(--border); background: var(--bg-surface);
+  color: var(--text-muted); font-family: var(--font-display); font-weight: 500; font-size: 11px;
+  cursor: pointer; transition: all 0.2s;
+}
+.filter-chip:hover { border-color: var(--border-light); color: var(--text-secondary); }
+.filter-chip.active { background: rgba(245,158,11,0.1); border-color: var(--accent-amber); color: var(--accent-amber); }
+</style>
+</head>
+<body>
+
+<!-- ─── TOP BAR ───────────────────────────────────────── -->
+<div class="top-bar">
+  <div class="logo">
+    <div class="logo-mark"></div>
+    <div class="logo-text">J.A.R.V.I.S.<span>PMO Reporting Engine</span></div>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-page="dashboard">Dashboard</button>
+    <button class="nav-tab" data-page="phases">Phases</button>
+    <button class="nav-tab" data-page="risks">Risk Matrix</button>
+    <button class="nav-tab" data-page="budget">Budget</button>
+    <button class="nav-tab" data-page="timeline">Timeline</button>
+    <button class="nav-tab" data-page="reports">Reports</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted)" id="system-clock"></div>
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md)">
+      <div style="width:28px;height:28px;border-radius:50%;background:var(--gradient-amber);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:600;font-size:10px;color:white" id="persona-avatar">PMO</div>
+      <div><div style="font-size:12px;font-weight:600;font-family:var(--font-display)" id="persona-label">PMO Office</div><div style="font-size:10px;color:var(--text-muted)">Reporting Platform</div></div>
+    </div>
+    <button onclick="JarvisAuth.logout()" class="btn-logout">← Exit</button>
+  </div>
+</div>
+
+<!-- ─── SYSTEM STATUS ──────────────────────────────────── -->
+<div class="system-status">
+  <div class="system-status-left">
+    <div class="system-status-item"><div class="active-indicator"></div><span>PMO ENGINE ONLINE</span></div>
+    <div class="system-status-item"><span>UPTIME: <span style="color:var(--accent-emerald)" id="system-uptime">00:00:00</span></span></div>
+    <div class="system-status-item"><span>BACKEND: <span id="backend-status" style="color:var(--accent-amber)">CONNECTING...</span></span></div>
+    <div class="system-status-item"><span>MIGRATION: <span id="migration-pct" style="color:var(--accent-amber)">—%</span></span></div>
+    <div class="system-status-item"><span>BUDGET: <span id="budget-status" style="color:var(--accent-emerald)">ON TRACK</span></span></div>
+  </div>
+  <div class="system-status-right">exec dashboard · risk matrix · budget · gantt · consolidated reports</div>
+</div>
+
+<!-- ─── KPI STRIP ─────────────────────────────────────── -->
+<div class="kpi-strip">
+  <div class="kpi-item"><div class="kpi-label">Total Apps</div><div class="kpi-value text-amber" id="kpi-apps">—</div><div class="kpi-trend">In portfolio</div></div>
+  <div class="kpi-item"><div class="kpi-label">Migrated</div><div class="kpi-value" style="color:var(--accent-emerald)" id="kpi-migrated">—</div><div class="kpi-trend up" id="kpi-mig-pct">—%</div></div>
+  <div class="kpi-item"><div class="kpi-label">On Track</div><div class="kpi-value" style="color:var(--accent-emerald)" id="kpi-on-track">—</div><div class="kpi-trend">Apps</div></div>
+  <div class="kpi-item"><div class="kpi-label">At Risk</div><div class="kpi-value" style="color:var(--accent-red)" id="kpi-at-risk">—</div><div class="kpi-trend warn">Apps</div></div>
+  <div class="kpi-item"><div class="kpi-label">Budget Used</div><div class="kpi-value" style="color:var(--accent-cyan)" id="kpi-budget-used">—%</div><div class="kpi-trend">Of approved budget</div></div>
+  <div class="kpi-item"><div class="kpi-label">Total Spend</div><div class="kpi-value" style="color:var(--text-primary)" id="kpi-spend">—</div><div class="kpi-trend">USD</div></div>
+  <div class="kpi-item"><div class="kpi-label">Days Left</div><div class="kpi-value" style="color:var(--accent-amber)" id="kpi-days">—</div><div class="kpi-trend">To cutover</div></div>
+  <div class="kpi-item"><div class="kpi-label">Open Risks</div><div class="kpi-value" style="color:var(--accent-red)" id="kpi-risks">—</div><div class="kpi-trend">High + Critical</div></div>
+</div>
+
+<!-- ─── DETAIL PANEL ───────────────────────────────────── -->
+<div class="panel-backdrop" id="panel-backdrop"></div>
+<div class="detail-panel" id="detail-panel">
+  <div class="panel-top">
+    <div class="panel-breadcrumbs" id="panel-breadcrumbs"></div>
+    <button class="panel-close" id="panel-close-btn">&times;</button>
+  </div>
+  <div class="panel-content" id="panel-content"></div>
+</div>
+
+<!-- ─── MAIN CONTENT ──────────────────────────────────── -->
+<div class="main-content">
+
+<!-- ══ DASHBOARD PAGE ═══════════════════════════════════ -->
+<div id="page-dashboard" class="page active">
+  <div class="section-header animate-in delay-1">
+    <div class="section-title">Executive Dashboard</div>
+    <div class="section-subtitle">Real-time migration programme status across all waves, budget, and delivery milestones</div>
+  </div>
+
+  <!-- Big metrics -->
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px" class="animate-in delay-2">
+    <div class="metric-card" style="grid-column:span 1">
+      <div class="metric-label">Overall Progress</div>
+      <div class="metric-value text-amber" id="dash-progress">—%</div>
+      <div class="metric-sub">Apps migrated + tested</div>
+      <div style="height:6px;background:var(--bg-elevated);border-radius:3px;overflow:hidden;margin-top:8px">
+        <div id="dash-progress-bar" style="height:100%;width:0%;background:var(--gradient-amber);border-radius:3px;transition:width 1s ease"></div>
+      </div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Wave 1</div>
+      <div class="metric-value" style="color:var(--accent-emerald)" id="dash-w1">100%</div>
+      <div class="metric-sub">CustomerPortal, OrderService</div>
+      <div style="margin-top:6px"><span class="status-pill status-active">Complete</span></div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Wave 2</div>
+      <div class="metric-value text-amber" id="dash-w2">62%</div>
+      <div class="metric-sub">PaymentGateway, InventoryAPI</div>
+      <div style="margin-top:6px"><span class="status-pill status-running">In Progress</span></div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Wave 3</div>
+      <div class="metric-value" style="color:var(--text-muted)" id="dash-w3">0%</div>
+      <div class="metric-sub">AuthService, ReportingEngine</div>
+      <div style="margin-top:6px"><span class="status-pill status-pending">Planned</span></div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Budget Forecast</div>
+      <div class="metric-value" style="color:var(--accent-cyan)" id="dash-budget">$2.4M</div>
+      <div class="metric-sub">vs $2.8M approved</div>
+      <div style="margin-top:6px"><span class="status-pill status-active">Under Budget</span></div>
+    </div>
+  </div>
+
+  <div class="grid-2 animate-in delay-3">
+    <!-- Delivery RAG Status -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Delivery RAG Status</div>
+        <button onclick="JarvisNav.showPage('phases')" style="font-size:11px;color:var(--accent-amber);background:none;border:none;cursor:pointer;font-family:var(--font-display)">View Phases →</button>
+      </div>
+      <div class="card-body" id="rag-status">
+        <div style="text-align:center;padding:30px;color:var(--text-muted)">Loading RAG status...</div>
+      </div>
+    </div>
+
+    <!-- PMO Stream -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">PMO Activity Stream</div>
+        <span class="card-badge badge-live">Live</span>
+      </div>
+      <div class="agent-stream" id="agent-stream-dash" style="border:none;border-radius:0;height:220px">
+        <div class="agent-stream-line"><span class="stream-time">--:--:--</span><span class="stream-agent stream-info">PMO</span><span class="stream-text">PMO Engine ready. Loading programme data...</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top risks on dashboard -->
+  <div class="card animate-in delay-4 mt-20">
+    <div class="card-header">
+      <div class="card-title">Top Risks Requiring Attention</div>
+      <button onclick="JarvisNav.showPage('risks')" style="font-size:11px;color:var(--accent-amber);background:none;border:none;cursor:pointer;font-family:var(--font-display)">Full Risk Register →</button>
+    </div>
+    <div id="dash-top-risks"><div style="padding:20px;text-align:center;color:var(--text-muted)">Loading risks...</div></div>
+  </div>
+</div>
+
+<!-- ══ PHASES PAGE ═══════════════════════════════════════ -->
+<div id="page-phases" class="page">
+  <div class="section-header animate-in delay-1">
+    <div class="section-title">Phase Status Tracker</div>
+    <div class="section-subtitle">Wave-by-wave delivery phases with milestones, dependencies, and blockers</div>
+  </div>
+  <div class="grid-2 animate-in delay-2">
+    <div id="phases-list"><div style="padding:30px;text-align:center;color:var(--text-muted)">Loading phases...</div></div>
+    <div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Phase Agent Stream</div></div>
+        <div class="agent-stream" id="agent-stream-phases" style="border:none;border-radius:0">
+          <div class="agent-stream-line"><span class="stream-time">--:--:--</span><span class="stream-agent stream-info">PHASE TRACKER</span><span class="stream-text">Monitoring phase progress...</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ RISK MATRIX PAGE ══════════════════════════════════ -->
+<div id="page-risks" class="page">
+  <div class="section-header animate-in delay-1">
+    <div class="section-title">Risk Register</div>
+    <div class="section-subtitle">Programme risks by probability and impact, with mitigations and owners</div>
+  </div>
+
+  <div class="grid-2 animate-in delay-2" style="margin-bottom:20px">
+    <!-- Heat Map -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">Risk Heat Map</div></div>
+      <div class="card-body" style="padding:20px">
+        <div style="display:flex;gap:6px;flex-direction:column;align-items:flex-start">
+          <!-- Labels -->
+          <div style="display:flex;gap:4px;font-size:9px;font-family:var(--font-mono);color:var(--text-muted);margin-left:56px;margin-bottom:2px">
+            <div style="width:36px;text-align:center">LOW</div><div style="width:36px;text-align:center">MED</div><div style="width:36px;text-align:center">HIGH</div><div style="width:36px;text-align:center">CRIT</div>
+          </div>
+          <div id="heat-matrix"><!-- rendered by JS --></div>
+        </div>
+        <div style="display:flex;gap:12px;margin-top:12px;font-size:10px;font-family:var(--font-mono)">
+          <span>🟩 Low</span><span>🟨 Medium</span><span>🟧 High</span><span>🟥 Critical</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Risk Counts -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">Risk Summary</div></div>
+      <div class="card-body" style="padding:20px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+          <div><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;font-family:var(--font-display)">Critical</div><div style="font-family:var(--font-mono);font-weight:700;font-size:32px;color:var(--accent-red)" id="risk-critical">—</div></div>
+          <div><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;font-family:var(--font-display)">High</div><div style="font-family:var(--font-mono);font-weight:700;font-size:32px;color:var(--accent-amber)" id="risk-high">—</div></div>
+          <div><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;font-family:var(--font-display)">Medium</div><div style="font-family:var(--font-mono);font-weight:700;font-size:32px;color:var(--accent-blue)" id="risk-medium">—</div></div>
+          <div><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;font-family:var(--font-display)">Low</div><div style="font-family:var(--font-mono);font-weight:700;font-size:32px;color:var(--text-muted)" id="risk-low">—</div></div>
+        </div>
+        <button onclick="generateReport('risk')" style="width:100%;padding:10px;background:var(--gradient-amber);border:none;border-radius:var(--radius-sm);color:white;font-family:var(--font-display);font-weight:600;font-size:13px;cursor:pointer">Export Risk Report</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Risk Table -->
+  <div class="card animate-in delay-3">
+    <div class="card-header"><div class="card-title">Risk Register</div><span class="card-badge badge-warn" style="background:rgba(245,158,11,0.15);color:var(--accent-amber)" id="risk-count-badge">— Risks</span></div>
+    <div>
+      <div class="risk-item" style="background:var(--bg-surface);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);font-family:var(--font-display);cursor:default">
+        <div>ID</div><div>Risk</div><div>Probability</div><div>Impact</div><div>Rating</div><div>Status</div>
+      </div>
+      <div id="risks-table"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ BUDGET PAGE ════════════════════════════════════════ -->
+<div id="page-budget" class="page">
+  <div class="section-header animate-in delay-1">
+    <div class="section-title">Budget Tracker</div>
+    <div class="section-subtitle">Planned vs actual spend by wave and workstream — updated daily from GCP Billing</div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px" class="animate-in delay-2">
+    <div class="metric-card"><div class="metric-label">Approved Budget</div><div class="metric-value text-amber">$2.8M</div><div class="metric-sub">Total GCP migration</div></div>
+    <div class="metric-card"><div class="metric-label">Spent To Date</div><div class="metric-value" style="color:var(--accent-cyan)" id="bud-spent">$1.42M</div><div class="metric-sub" id="bud-pct-lbl">50.7% used</div></div>
+    <div class="metric-card"><div class="metric-label">Forecast at Completion</div><div class="metric-value" style="color:var(--accent-emerald)" id="bud-forecast">$2.4M</div><div class="metric-sub">$400K under budget</div></div>
+    <div class="metric-card"><div class="metric-label">GCP Monthly Runway</div><div class="metric-value" style="color:var(--accent-blue)" id="bud-gcp">$180K</div><div class="metric-sub">Current monthly spend</div></div>
+  </div>
+
+  <div class="grid-2 animate-in delay-3">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Spend by Wave</div>
+        <button onclick="generateReport('budget')" style="font-size:11px;color:var(--accent-amber);background:none;border:none;cursor:pointer;font-family:var(--font-display)">Export CSV</button>
+      </div>
+      <div class="card-body" id="budget-waves"><div style="padding:30px;text-align:center;color:var(--text-muted)">Loading budget data...</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Spend by Workstream</div>
+      </div>
+      <div class="card-body" id="budget-workstreams"><div style="padding:30px;text-align:center;color:var(--text-muted)">Loading...</div></div>
+    </div>
+  </div>
+
+  <div class="card animate-in delay-4 mt-20">
+    <div class="card-header">
+      <div class="card-title">GCP Billing Breakdown (Monthly)</div>
+      <span class="card-badge badge-live">Live</span>
+    </div>
+    <div class="card-body" id="gcp-billing"><div style="padding:20px;text-align:center;color:var(--text-muted)">Loading GCP billing data...</div></div>
+  </div>
+</div>
+
+<!-- ══ TIMELINE PAGE ═════════════════════════════════════ -->
+<div id="page-timeline" class="page">
+  <div class="section-header animate-in delay-1">
+    <div class="section-title">Programme Timeline</div>
+    <div class="section-subtitle">Gantt chart showing planned vs actual delivery across all migration waves</div>
+  </div>
+
+  <div class="card animate-in delay-2">
+    <div class="card-header">
+      <div class="card-title">Migration Gantt Chart</div>
+      <div style="display:flex;gap:10px;font-size:11px;font-family:var(--font-mono)">
+        <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:5px;background:var(--gradient-green);display:inline-block;border-radius:2px"></span>Complete</span>
+        <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:5px;background:var(--gradient-amber);display:inline-block;border-radius:2px"></span>In Progress</span>
+        <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:5px;background:var(--bg-elevated);border:1px solid var(--border);display:inline-block;border-radius:2px"></span>Planned</span>
+        <span style="display:flex;align-items:center;gap:4px"><span style="width:2px;height:12px;background:var(--accent-amber);display:inline-block"></span>Today</span>
+      </div>
+    </div>
+    <div style="overflow-x:auto;padding-bottom:8px" id="gantt-container">
+      <div style="padding:30px;text-align:center;color:var(--text-muted)">Building Gantt chart...</div>
+    </div>
+  </div>
+
+  <!-- Milestones -->
+  <div class="card animate-in delay-3 mt-20">
+    <div class="card-header"><div class="card-title">Key Milestones</div></div>
+    <div style="overflow-x:auto">
+    <table class="data-table">
+      <thead><tr><th>Milestone</th><th>Planned Date</th><th>Forecast Date</th><th>Status</th><th>Owner</th><th>Notes</th></tr></thead>
+      <tbody id="milestones-table"></tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══ REPORTS PAGE ══════════════════════════════════════ -->
+<div id="page-reports" class="page">
+  <div class="section-header animate-in delay-1">
+    <div class="section-title">Executive Reports</div>
+    <div class="section-subtitle">AI-generated consolidated reports — weekly status, board deck, risk briefing, and delivery dashboards</div>
+  </div>
+
+  <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap" class="animate-in delay-2">
+    <select id="report-type" style="padding:8px 14px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-family:var(--font-display);font-size:13px">
+      <option value="weekly">Weekly Status Report</option>
+      <option value="board">Board Delivery Update</option>
+      <option value="risk">Risk Briefing</option>
+      <option value="budget">Budget Report</option>
+      <option value="technical">Technical Status Report</option>
+      <option value="executive">Executive Summary</option>
+    </select>
+    <select id="report-period" style="padding:8px 14px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-family:var(--font-display);font-size:13px">
+      <option value="this-week">This Week</option>
+      <option value="last-week">Last Week</option>
+      <option value="this-month">This Month</option>
+      <option value="programme">Full Programme</option>
+    </select>
+    <div style="flex:1"></div>
+    <button onclick="generateReport()" style="padding:8px 18px;background:var(--gradient-amber);border:none;border-radius:var(--radius-sm);color:white;font-family:var(--font-display);font-weight:600;font-size:13px;cursor:pointer">Generate Report</button>
+  </div>
+
+  <div class="grid-2-1 animate-in delay-3">
+    <div id="report-output">
+      <div style="text-align:center;padding:80px;color:var(--text-muted)">
+        <div style="font-size:48px;margin-bottom:12px">📊</div>
+        <div style="font-family:var(--font-display);font-weight:600;font-size:16px;margin-bottom:4px">No Report Generated</div>
+        <div style="font-size:13px">Select report type and click Generate Report</div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-header"><div class="card-title">Report Agent</div></div>
+        <div class="agent-stream" id="agent-stream-reports" style="border:none;border-radius:0">
+          <div class="agent-stream-line"><span class="stream-time">--:--:--</span><span class="stream-agent stream-info">PMO REPORTER</span><span class="stream-text">Report generator ready...</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Recent Reports</div></div>
+        <div class="card-body" id="recent-reports">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px;background:var(--bg-elevated);border-radius:var(--radius-sm)">
+              <div><div style="font-size:12px;font-weight:500">Weekly Status — W08</div><div style="font-size:10px;color:var(--text-muted)">Generated 2025-02-21</div></div>
+              <button style="font-size:10px;color:var(--accent-amber);background:none;border:none;cursor:pointer;font-family:var(--font-display)">View</button>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px;background:var(--bg-elevated);border-radius:var(--radius-sm)">
+              <div><div style="font-size:12px;font-weight:500">Risk Briefing — Wave 2</div><div style="font-size:10px;color:var(--text-muted)">Generated 2025-02-20</div></div>
+              <button style="font-size:10px;color:var(--accent-amber);background:none;border:none;cursor:pointer;font-family:var(--font-display)">View</button>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px;background:var(--bg-elevated);border-radius:var(--radius-sm)">
+              <div><div style="font-size:12px;font-weight:500">Board Delivery Update</div><div style="font-size:10px;color:var(--text-muted)">Generated 2025-02-14</div></div>
+              <button style="font-size:10px;color:var(--accent-amber);background:none;border:none;cursor:pointer;font-family:var(--font-display)">View</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end main-content -->
+
+<!-- ─── JARVIS CHAT FAB ────────────────────────────────── -->
+<div class="jarvis-fab" id="jarvis-fab"><div class="jarvis-fab-label">Ask J.A.R.V.I.S.</div></div>
+<div class="jarvis-chat" id="jarvis-chat">
+  <div class="jarvis-chat-header">
+    <div class="jarvis-chat-title"><div class="mini-arc"></div><span>J.A.R.V.I.S. — PMO</span></div>
+    <button class="jarvis-chat-close" id="jarvis-chat-close">&times;</button>
+  </div>
+  <div class="jarvis-chat-context" id="jarvis-chat-context">PMO Engine · Dashboard · Phases · Risks · Budget · Timeline · Reports</div>
+  <div class="jarvis-chat-messages" id="jarvis-chat-messages">
+    <div class="jarvis-msg assistant"><div>Hello! I'm the PMO Reporting AI. I can help you understand programme status, analyse risks, review budget health, and generate executive reports. What would you like to know?</div></div>
+  </div>
+  <div class="jarvis-suggestions">
+    <div class="jarvis-suggestions-label">Quick Questions</div>
+    <button class="jarvis-suggestion" onclick="JarvisChat.sendSuggestion('What is the current migration status?')">Current migration status?</button>
+    <button class="jarvis-suggestion" onclick="JarvisChat.sendSuggestion('What are the top programme risks?')">Top programme risks?</button>
+    <button class="jarvis-suggestion" onclick="JarvisChat.sendSuggestion('Generate an executive summary')">Generate executive summary</button>
+  </div>
+  <div class="jarvis-chat-input">
+    <input type="text" id="jarvis-chat-input-field" placeholder="Ask about programme status, risks, budget...">
+    <button id="jarvis-chat-send">&#10148;</button>
+  </div>
+</div>
+
+<script src="../shared/jarvis.js"></script>
+<script>
+// ── INIT ────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  if (!JarvisAuth.requireAuth()) return;
+  const persona = JarvisAuth.getPersona();
+  if (persona) {
+    document.getElementById('persona-avatar').style.background = persona.gradient || 'linear-gradient(135deg,#F59E0B,#EF4444)';
+    document.getElementById('persona-label').textContent = persona.label || 'PMO Office';
+  }
+  JarvisNav.init('dashboard');
+  JarvisChat.init();
+  initClock();
+  initUptime();
+  checkBackend();
+  loadDemoData();
+});
+
+function initClock() {
+  const el = document.getElementById('system-clock');
+  const tick = () => { if(el) el.textContent = new Date().toUTCString().slice(0,25)+' UTC'; };
+  tick(); setInterval(tick, 1000);
+}
+function initUptime() {
+  const start = Date.now();
+  const el = document.getElementById('system-uptime');
+  setInterval(() => {
+    const s = Math.floor((Date.now()-start)/1000);
+    const h = String(Math.floor(s/3600)).padStart(2,'0');
+    const m = String(Math.floor((s%3600)/60)).padStart(2,'0');
+    const sec = String(s%60).padStart(2,'0');
+    if(el) el.textContent = `${h}:${m}:${sec}`;
+  }, 1000);
+}
+async function checkBackend() {
+  const el = document.getElementById('backend-status');
+  try {
+    const r = await fetch('http://localhost:8010/api/health', { signal: AbortSignal.timeout(3000) });
+    if (r.ok) { el.textContent='CONNECTED'; el.style.color='var(--accent-emerald)'; }
+    else { el.textContent='DEGRADED'; el.style.color='var(--accent-amber)'; }
+  } catch(e) {
+    el.textContent='OFFLINE — DEMO MODE'; el.style.color='var(--accent-red)';
+  }
+}
+
+// ── DEMO DATA ────────────────────────────────────────────
+const DEMO_PHASES = [
+  { wave:'Wave 1', apps:'CustomerPortal, OrderService', pct:100, status:'complete',    start:'2025-01-06', end:'2025-02-07', owner:'Sarah Chen',  notes:'On time, under budget' },
+  { wave:'Wave 2', apps:'PaymentGateway, InventoryAPI', pct:62,  status:'active',      start:'2025-02-10', end:'2025-03-14', owner:'Mike Rahman', notes:'2 apps in migration, 1 at risk' },
+  { wave:'Wave 3', apps:'AuthService, ReportingEngine', pct:0,   status:'upcoming',    start:'2025-03-17', end:'2025-04-25', owner:'TBC',          notes:'Assessment complete, planning phase' },
+  { wave:'Cutover', apps:'All 6 apps', pct:0, status:'upcoming', start:'2025-04-28', end:'2025-05-09', owner:'Programme Lead', notes:'Final cutover window' },
+];
+
+const DEMO_RISKS = [
+  { id:'R-001', title:'Cloud SQL connection pool exhaustion',    app:'CustomerPortal',   prob:'high',   impact:'critical', rating:'critical', owner:'DBA Lead',     status:'open',     mitigation:'Increase pool size, add pgbouncer middleware' },
+  { id:'R-002', title:'PaymentGateway latency SLA breach',       app:'PaymentGateway',   prob:'high',   impact:'high',     rating:'critical', owner:'Arch Lead',    status:'open',     mitigation:'Cloud SQL Proxy optimisation, read replicas' },
+  { id:'R-003', title:'Wave 3 resource availability',            app:'Programme Wide',   prob:'medium', impact:'high',     rating:'high',     owner:'PMO',          status:'open',     mitigation:'Confirm engineers available from 17 March' },
+  { id:'R-004', title:'UAT schedule overrun — no UAT lead',       app:'CustomerPortal',   prob:'medium', impact:'medium',   rating:'medium',   owner:'BA Lead',      status:'mitigated',mitigation:'Interim UAT lead identified' },
+  { id:'R-005', title:'GCP quota limits for sustained wave 3',   app:'AuthService',      prob:'low',    impact:'high',     rating:'high',     owner:'Cloud Arch',   status:'open',     mitigation:'Submit quota increase request to Google' },
+  { id:'R-006', title:'Legacy batch job incompatibility',        app:'ReportingEngine',  prob:'medium', impact:'medium',   rating:'medium',   owner:'Dev Lead',     status:'open',     mitigation:'Proof of concept scheduled for week 7' },
+  { id:'R-007', title:'Cutover window regulatory freeze',        app:'PaymentGateway',   prob:'low',    impact:'critical', rating:'high',     owner:'Compliance',   status:'open',     mitigation:'Confirm with compliance team in Feb' },
+];
+
+const DEMO_BUDGET = [
+  { wave:'Wave 1', planned:620000,  actual:581000,  gcp:42000 },
+  { wave:'Wave 2', planned:780000,  actual:498000,  gcp:88000 },
+  { wave:'Wave 3', planned:920000,  actual:0,       gcp:0 },
+  { wave:'Infra',  planned:280000,  actual:241000,  gcp:50000 },
+  { wave:'PMO',    planned:200000,  actual:100000,  gcp:0 },
+];
+
+const DEMO_MILESTONES = [
+  { name:'Wave 1 Migration Complete',     planned:'2025-02-07', forecast:'2025-02-07', status:'complete',   owner:'Sarah Chen' },
+  { name:'Wave 1 UAT Sign-off',           planned:'2025-02-14', forecast:'2025-02-14', status:'complete',   owner:'UAT Lead' },
+  { name:'Wave 2 Migration Start',        planned:'2025-02-10', forecast:'2025-02-10', status:'complete',   owner:'Mike Rahman' },
+  { name:'PaymentGateway Go-Live',        planned:'2025-03-07', forecast:'2025-03-14', status:'at-risk',    owner:'Mike Rahman' },
+  { name:'Wave 2 Migration Complete',     planned:'2025-03-14', forecast:'2025-03-21', status:'at-risk',    owner:'Mike Rahman' },
+  { name:'Wave 3 Migration Start',        planned:'2025-03-17', forecast:'2025-03-24', status:'planned',    owner:'TBC' },
+  { name:'Wave 3 Migration Complete',     planned:'2025-04-25', forecast:'2025-05-02', status:'planned',    owner:'TBC' },
+  { name:'Final Cutover',                 planned:'2025-05-05', forecast:'2025-05-12', status:'planned',    owner:'Programme Lead' },
+];
+
+const GANTT_TASKS = [
+  { name:'Assessment',           start:0,  len:3,  status:'complete',  row:0 },
+  { name:'Wave 1 — Migration',   start:3,  len:4,  status:'complete',  row:1 },
+  { name:'Wave 1 — Testing',     start:6,  len:2,  status:'complete',  row:2 },
+  { name:'Wave 1 — UAT',         start:7,  len:2,  status:'complete',  row:3 },
+  { name:'Wave 2 — Migration',   start:9,  len:5,  status:'active',    row:4 },
+  { name:'Wave 2 — Testing',     start:13, len:2,  status:'planned',   row:5 },
+  { name:'Wave 3 — Migration',   start:15, len:5,  status:'planned',   row:6 },
+  { name:'Wave 3 — Testing',     start:19, len:2,  status:'planned',   row:7 },
+  { name:'Cutover & Go-Live',    start:21, len:2,  status:'planned',   row:8 },
+];
+const MONTHS = ['Jan','Feb','Mar','Apr','May'];
+const TOTAL_WEEKS = 23;
+
+function loadDemoData() {
+  // KPIs
+  document.getElementById('kpi-apps').textContent       = '18';
+  document.getElementById('kpi-migrated').textContent   = '5';
+  document.getElementById('kpi-mig-pct').textContent    = '27.8%';
+  document.getElementById('kpi-on-track').textContent   = '3';
+  document.getElementById('kpi-at-risk').textContent    = '2';
+  document.getElementById('kpi-budget-used').textContent= '50.7%';
+  document.getElementById('kpi-spend').textContent      = '$1.42M';
+  document.getElementById('kpi-days').textContent       = '74';
+  document.getElementById('kpi-risks').textContent      = DEMO_RISKS.filter(r=>r.rating==='critical'||r.rating==='high').length;
+
+  document.getElementById('migration-pct').textContent   = '27.8%';
+  document.getElementById('dash-progress').textContent   = '27%';
+  setTimeout(() => { const b = document.getElementById('dash-progress-bar'); if(b) b.style.width='27%'; }, 300);
+
+  renderRAGStatus();
+  renderDashTopRisks();
+  renderPhases();
+  renderRisks();
+  renderBudget();
+  renderGantt();
+  renderMilestones();
+  startDashStream();
+}
+
+// ── DASHBOARD ───────────────────────────────────────────────
+function renderRAGStatus() {
+  const items = [
+    { label:'Wave 1 — CustomerPortal', rag:'green', note:'Complete — live on GCP' },
+    { label:'Wave 1 — OrderService',   rag:'green', note:'Complete — live on GCP' },
+    { label:'Wave 2 — PaymentGateway', rag:'red',   note:'Latency SLA breach — 2 open issues' },
+    { label:'Wave 2 — InventoryAPI',   rag:'amber', note:'68% migrated — on schedule' },
+    { label:'Wave 3 — AuthService',    rag:'grey',  note:'Planned from March 17' },
+    { label:'Wave 3 — ReportingEngine',rag:'grey',  note:'Planned from March 17' },
+  ];
+  const color = { green:'var(--accent-emerald)', red:'var(--accent-red)', amber:'var(--accent-amber)', grey:'var(--text-muted)' };
+  document.getElementById('rag-status').innerHTML = items.map(i=>`
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="width:12px;height:12px;border-radius:50%;background:${color[i.rag]};flex-shrink:0"></div>
+      <div style="flex:1;font-size:13px;font-weight:500">${i.label}</div>
+      <div style="font-size:11px;color:var(--text-muted)">${i.note}</div>
+    </div>`).join('');
+}
+
+function renderDashTopRisks() {
+  const topRisks = DEMO_RISKS.filter(r=>r.rating==='critical'||r.rating==='high').slice(0,4);
+  const ratingColor = { critical:'var(--accent-red)', high:'var(--accent-amber)' };
+  document.getElementById('dash-top-risks').innerHTML = `<div style="overflow-x:auto"><table class="data-table">
+    <thead><tr><th>ID</th><th>Risk</th><th>App</th><th>Rating</th><th>Owner</th><th>Status</th></tr></thead>
+    <tbody>${topRisks.map(r=>`
+      <tr onclick="openRiskDetail('${r.id}')" class="clickable-row">
+        <td style="font-family:var(--font-mono);font-size:11px">${r.id}</td>
+        <td>${r.title}</td>
+        <td style="font-size:11px;color:var(--text-muted)">${r.app}</td>
+        <td><span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(${r.rating==='critical'?'239,68,68':'245,158,11'},0.12);color:${ratingColor[r.rating]};font-family:var(--font-mono);text-transform:uppercase">${r.rating}</span></td>
+        <td style="font-size:11px;color:var(--text-muted)">${r.owner}</td>
+        <td><span class="status-pill ${r.status==='open'?'status-at-risk':r.status==='mitigated'?'status-active':'status-pending'}" style="text-transform:capitalize">${r.status}</span></td>
+      </tr>`).join('')}
+    </tbody>
+  </table></div>`;
+}
+
+// ── PHASES ──────────────────────────────────────────────────
+function renderPhases() {
+  const statusColor = { complete:'var(--accent-emerald)', active:'var(--accent-amber)', upcoming:'var(--text-muted)', 'at-risk':'var(--accent-red)' };
+  document.getElementById('phases-list').innerHTML = DEMO_PHASES.map(p => `
+    <div class="phase-card ${p.status}" onclick="openPhaseDetail('${p.wave}')">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px">
+        <div>
+          <div style="font-family:var(--font-display);font-weight:700;font-size:16px;margin-bottom:2px">${p.wave}</div>
+          <div style="font-size:12px;color:var(--text-secondary)">${p.apps}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-family:var(--font-mono);font-weight:700;font-size:20px;color:${statusColor[p.status]}">${p.pct}%</div>
+          <div style="font-size:10px;color:var(--text-muted);text-transform:capitalize;margin-top:2px">${p.status}</div>
+        </div>
+      </div>
+      <div style="height:6px;background:var(--bg-elevated);border-radius:3px;overflow:hidden;margin-bottom:10px">
+        <div style="height:100%;width:${p.pct}%;background:${p.status==='complete'?'var(--gradient-green)':p.status==='active'?'var(--gradient-amber)':'var(--bg-elevated)'};border-radius:3px"></div>
+      </div>
+      <div style="display:flex;gap:16px;font-size:11px;color:var(--text-muted)">
+        <span>📅 ${p.start} → ${p.end}</span>
+        <span>👤 ${p.owner}</span>
+        <span style="color:${p.status==='at-risk'?'var(--accent-red)':'var(--text-muted)'}">${p.notes}</span>
+      </div>
+    </div>`).join('');
+
+  JarvisStream.appendLine('agent-stream-phases', { agent:'PHASE TRACKER', text:'Wave 1: COMPLETE ✓ Wave 2: 62% IN PROGRESS Wave 3: PLANNED', type:'info' });
+  JarvisStream.appendLine('agent-stream-phases', { agent:'RISK MONITOR', text:'Wave 2 flagged AT RISK — PaymentGateway latency issues', type:'warn' });
+}
+
+// ── RISKS ────────────────────────────────────────────────────
+function renderRisks() {
+  const ratingColor = { critical:'var(--accent-red)', high:'var(--accent-amber)', medium:'var(--accent-blue)', low:'var(--text-muted)' };
+  const probColor   = { high:'var(--accent-red)', medium:'var(--accent-amber)', low:'var(--accent-emerald)' };
+  const impColor    = { critical:'var(--accent-red)', high:'var(--accent-amber)', medium:'var(--accent-blue)', low:'var(--text-muted)' };
+
+  document.getElementById('risk-critical').textContent = DEMO_RISKS.filter(r=>r.rating==='critical').length;
+  document.getElementById('risk-high').textContent     = DEMO_RISKS.filter(r=>r.rating==='high').length;
+  document.getElementById('risk-medium').textContent   = DEMO_RISKS.filter(r=>r.rating==='medium').length;
+  document.getElementById('risk-low').textContent      = DEMO_RISKS.filter(r=>r.rating==='low').length;
+  document.getElementById('risk-count-badge').textContent = DEMO_RISKS.length+' Risks';
+
+  document.getElementById('risks-table').innerHTML = DEMO_RISKS.map(r=>`
+    <div class="risk-item ${r.rating}" onclick="openRiskDetail('${r.id}')">
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">${r.id}</div>
+      <div style="font-size:12px;font-weight:500">${r.title}</div>
+      <div style="font-size:11px;color:${probColor[r.prob]};text-transform:capitalize">${r.prob}</div>
+      <div style="font-size:11px;color:${impColor[r.impact]};text-transform:capitalize">${r.impact}</div>
+      <div><span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(${r.rating==='critical'?'239,68,68':r.rating==='high'?'245,158,11':r.rating==='medium'?'59,130,246':'100,100,100'},0.12);color:${ratingColor[r.rating]};font-family:var(--font-mono);text-transform:uppercase">${r.rating}</span></div>
+      <div><span class="status-pill ${r.status==='open'?'status-at-risk':r.status==='mitigated'?'status-active':'status-pending'}" style="text-transform:capitalize;font-size:10px">${r.status}</span></div>
+    </div>`).join('');
+
+  // Heat map
+  const probs   = ['high','medium','low'];
+  const impacts = ['low','medium','high','critical'];
+  const heatColor = (p,i) => {
+    const score = (['low','medium','high'].indexOf(p)+1) * (['low','medium','high','critical'].indexOf(i)+1);
+    if (score >= 9) return { bg:'rgba(239,68,68,0.3)',  txt:'var(--accent-red)' };
+    if (score >= 6) return { bg:'rgba(245,158,11,0.3)', txt:'var(--accent-amber)' };
+    if (score >= 3) return { bg:'rgba(59,130,246,0.2)', txt:'var(--accent-blue)' };
+    return { bg:'rgba(16,185,129,0.15)', txt:'var(--accent-emerald)' };
+  };
+  const riskAt = (p,i) => DEMO_RISKS.filter(r=>r.prob===p&&r.impact===i).length;
+  document.getElementById('heat-matrix').innerHTML = probs.map(p=>`
+    <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px">
+      <div style="width:52px;font-size:9px;color:var(--text-muted);font-family:var(--font-mono);text-align:right;padding-right:4px;text-transform:uppercase">${p}</div>
+      ${impacts.map(i=>{ const c=heatColor(p,i); const n=riskAt(p,i); return `<div class="heat-cell" style="background:${c.bg};color:${n ? c.txt : 'var(--border)'};width:36px;height:36px">${n||''}</div>`; }).join('')}
+    </div>`).join('');
+}
+
+// ── BUDGET ────────────────────────────────────────────────────
+function renderBudget() {
+  const fmt = v => v >= 1000000 ? `$${(v/1000000).toFixed(2)}M` : `$${Math.round(v/1000)}K`;
+  document.getElementById('budget-waves').innerHTML = DEMO_BUDGET.map(b => {
+    const pct = b.planned > 0 ? Math.min(Math.round(b.actual/b.planned*100), 100) : 0;
+    const over = b.actual > b.planned;
+    return `<div class="budget-row">
+      <div style="font-weight:500;font-family:var(--font-display)">${b.wave}</div>
+      <div>
+        <div class="budget-bar-wrap">
+          <div class="budget-bar-actual" style="width:${pct}%;background:${over?'var(--accent-red)':pct>75?'var(--accent-amber)':'var(--gradient-green)'}"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);margin-top:3px"><span>Planned: ${fmt(b.planned)}</span><span>${pct}%</span></div>
+      </div>
+      <div style="font-family:var(--font-mono);font-size:12px">${fmt(b.planned)}</div>
+      <div style="font-family:var(--font-mono);font-size:12px;color:${over?'var(--accent-red)':b.actual===0?'var(--text-muted)':'var(--accent-emerald)'}">${b.actual>0?fmt(b.actual):'—'}</div>
+      <div style="font-size:11px;color:${over?'var(--accent-red)':'var(--accent-emerald)'}">${over?'OVER':'ok'}</div>
+    </div>`;
+  }).join('');
+
+  const workstreams = [
+    { name:'Infrastructure', pct:72, spend:486000, total:680000 },
+    { name:'Development',    pct:55, spend:360000, total:660000 },
+    { name:'Testing',        pct:40, spend:156000, total:390000 },
+    { name:'PMO / Governance', pct:50, spend:100000, total:200000 },
+    { name:'Training',       pct:10, spend:18000,  total:180000 },
+  ];
+  const fmt2 = v => `$${Math.round(v/1000)}K`;
+  document.getElementById('budget-workstreams').innerHTML = workstreams.map(w=>`
+    <div class="budget-row">
+      <div style="font-weight:500;font-family:var(--font-display)">${w.name}</div>
+      <div>
+        <div class="budget-bar-wrap"><div class="budget-bar-actual" style="width:${w.pct}%;background:${w.pct>90?'var(--accent-red)':w.pct>75?'var(--accent-amber)':'var(--gradient-amber)'}"></div></div>
+      </div>
+      <div style="font-family:var(--font-mono);font-size:12px;color:var(--text-muted)">${fmt2(w.total)}</div>
+      <div style="font-family:var(--font-mono);font-size:12px">${fmt2(w.spend)}</div>
+      <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">${w.pct}%</div>
+    </div>`).join('');
+
+  const gcpItems = [
+    { service:'Cloud SQL (PostgreSQL)', cost:42000 },
+    { service:'GKE — Wave 2 clusters',  cost:38000 },
+    { service:'GCE — Compute Engine',   cost:31000 },
+    { service:'Cloud Pub/Sub',          cost:22000 },
+    { service:'Cloud Storage',          cost:18000 },
+    { service:'Cloud Armor + LB',       cost:16000 },
+    { service:'Cloud Monitoring',       cost:8000 },
+    { service:'Networking / Egress',    cost:5000 },
+  ];
+  const maxCost = 42000;
+  document.getElementById('gcp-billing').innerHTML = gcpItems.map(g=>`
+    <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="min-width:200px;font-size:12px">${g.service}</div>
+      <div style="flex:1;height:8px;background:var(--bg-elevated);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${Math.round(g.cost/maxCost*100)}%;background:var(--gradient-amber);border-radius:4px;transition:width 0.8s ease"></div>
+      </div>
+      <div style="font-family:var(--font-mono);font-size:12px;min-width:64px;text-align:right">$${(g.cost/1000).toFixed(0)}K/mo</div>
+    </div>`).join('');
+}
+
+// ── GANTT ─────────────────────────────────────────────────────
+function renderGantt() {
+  const TODAY_WEEK = 9; // week in programme = "now"
+  const TRACK_WIDTH = 700;
+  const ww = TRACK_WIDTH / TOTAL_WEEKS;
+
+  const statusBg = { complete:'var(--gradient-green)', active:'var(--gradient-amber)', planned:'rgba(100,100,100,0.3)' };
+
+  const monthPositions = [
+    { label:'Jan', week:0 }, { label:'Feb', week:4 }, { label:'Mar', week:8 },
+    { label:'Apr', week:13 }, { label:'May', week:18 },
+  ];
+
+  const header = `<div class="gantt-row" style="border-bottom:2px solid var(--border);background:var(--bg-surface)">
+    <div class="gantt-label" style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-muted)">Task</div>
+    <div class="gantt-track" style="position:relative;height:28px">
+      ${monthPositions.map(m=>`<div class="gantt-month" style="left:${m.week*ww}px;width:${5*ww}px">${m.label}</div>`).join('')}
+      <div class="gantt-today" style="left:${TODAY_WEEK*ww}px"></div>
+    </div>
+  </div>`;
+
+  const rows = GANTT_TASKS.map(t => `
+    <div class="gantt-row">
+      <div class="gantt-label">${t.name}</div>
+      <div class="gantt-track">
+        <div class="gantt-today" style="left:${TODAY_WEEK*ww}px"></div>
+        <div class="gantt-bar" style="left:${t.start*ww+2}px;width:${t.len*ww-4}px;background:${statusBg[t.status]}">${t.name}</div>
+      </div>
+    </div>`).join('');
+
+  document.getElementById('gantt-container').innerHTML = `<div style="min-width:900px">${header}${rows}</div>`;
+}
+
+function renderMilestones() {
+  const statusStyle = {
+    complete: `<span class="status-pill status-active">Complete</span>`,
+    'at-risk': `<span class="status-pill status-at-risk">At Risk</span>`,
+    planned:   `<span class="status-pill status-pending">Planned</span>`,
+  };
+  document.getElementById('milestones-table').innerHTML = DEMO_MILESTONES.map(m=>`
+    <tr>
+      <td style="font-weight:500">${m.name}</td>
+      <td style="font-family:var(--font-mono);font-size:12px">${m.planned}</td>
+      <td style="font-family:var(--font-mono);font-size:12px;color:${m.forecast!==m.planned?'var(--accent-amber)':'var(--accent-emerald)'}">${m.forecast}</td>
+      <td>${statusStyle[m.status]||''}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${m.owner}</td>
+      <td style="font-size:11px;color:${m.forecast!==m.planned?'var(--accent-amber)':'var(--text-muted)'}">
+        ${m.forecast!==m.planned?'Slipped '+daysDiff(m.planned,m.forecast)+' days':'On track'}
+      </td>
+    </tr>`).join('');
+}
+
+function daysDiff(d1, d2) {
+  return Math.round((new Date(d2)-new Date(d1))/(1000*60*60*24));
+}
+
+// ── STREAM ────────────────────────────────────────────────────
+function startDashStream() {
+  const lines = [
+    { agent:'PMO',          text:'Programme week 9/23 — Overall progress: 27%', type:'info' },
+    { agent:'WAVE TRACKER', text:'Wave 1 complete — CustomerPortal + OrderService live on GCP', type:'success' },
+    { agent:'WAVE TRACKER', text:'Wave 2 in progress — PaymentGateway at risk', type:'warn' },
+    { agent:'RISK MONITOR', text:'R-001 + R-002 critical — escalated to programme board', type:'error' },
+    { agent:'BUDGET',       text:'Current spend $1.42M of $2.8M — 50.7% — ON TRACK', type:'success' },
+  ];
+  let i = 0;
+  const go = () => { if (i < lines.length) { JarvisStream.appendLine('agent-stream-dash', lines[i++]); setTimeout(go, 1200); } };
+  setTimeout(go, 600);
+}
+
+// ── REPORT GENERATION ─────────────────────────────────────────
+function generateReport(type) {
+  const rtype = type || document.getElementById('report-type')?.value || 'weekly';
+  const period = document.getElementById('report-period')?.value || 'this-week';
+
+  JarvisNotify.agent(`Generating ${rtype} report with Claude AI...`);
+  JarvisStream.appendLine('agent-stream-reports', { agent:'PMO REPORTER', text:`Generating ${rtype} report — ${period}...`, type:'info' });
+
+  setTimeout(() => {
+    JarvisStream.appendLine('agent-stream-reports', { agent:'PMO REPORTER', text:'Aggregating phase status, budget, and risk data...', type:'info' });
+  }, 800);
+  setTimeout(() => {
+    JarvisStream.appendLine('agent-stream-reports', { agent:'CLAUDE AI', text:'Drafting executive narrative...', type:'info' });
+  }, 1600);
+  setTimeout(() => {
+    JarvisStream.appendLine('agent-stream-reports', { agent:'PMO REPORTER', text:'Report generated ✓', type:'success' });
+    JarvisNotify.success(`${rtype} report generated`);
+    renderReportOutput(rtype);
+  }, 2400);
+}
+
+function renderReportOutput(type) {
+  const title = {
+    weekly:'Weekly Status Report — Week 8', board:'Board Delivery Update',
+    risk:'Risk Briefing Note', budget:'Budget Report', technical:'Technical Status Report', executive:'Executive Summary',
+  }[type] || 'Report';
+
+  const date = new Date().toLocaleDateString('en-GB', { year:'numeric', month:'long', day:'numeric' });
+
+  document.getElementById('report-output').innerHTML = `
+    <div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden">
+      <!-- Report header -->
+      <div style="background:var(--gradient-amber);padding:24px 28px;color:white">
+        <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;opacity:0.8;margin-bottom:4px;font-family:var(--font-display)">J.A.R.V.I.S. PMO Engine</div>
+        <div style="font-family:var(--font-display);font-weight:700;font-size:22px;margin-bottom:4px">${title}</div>
+        <div style="font-size:12px;opacity:0.85">Generated: ${date} · Programme: GCP Cloud Migration</div>
+      </div>
+
+      <div style="padding:24px 28px">
+        <!-- KPI strip -->
+        <div class="report-kpi-row">
+          <div class="report-kpi"><div class="report-kpi-val text-amber">27%</div><div class="report-kpi-lbl">Overall Progress</div></div>
+          <div class="report-kpi"><div class="report-kpi-val text-emerald">5/18</div><div class="report-kpi-lbl">Apps Migrated</div></div>
+          <div class="report-kpi"><div class="report-kpi-val" style="color:var(--accent-cyan)">$1.42M</div><div class="report-kpi-lbl">Spend to Date</div></div>
+          <div class="report-kpi"><div class="report-kpi-val text-red">2</div><div class="report-kpi-lbl">Critical Risks</div></div>
+        </div>
+
+        <div class="report-section">
+          <h3>Executive Summary</h3>
+          <p style="font-size:13px;line-height:1.7;color:var(--text-secondary)">
+            The GCP Cloud Migration Programme is progressing at 27% overall completion, currently in Wave 2. Wave 1 (CustomerPortal, OrderService) was delivered on time and under budget and is now live in production on GCP. Wave 2 is 62% complete with PaymentGateway flagged as at-risk due to latency SLA breaches that require remediation before go-live.<br><br>
+            Budget position is healthy at $1.42M spent of $2.8M approved (50.7%), with forecast at completion of $2.4M — $400K under approved budget. Programme is tracking approximately 7 days behind original schedule due to Wave 2 issues, with revised cutover planned for 12 May 2025.
+          </p>
+        </div>
+
+        <div class="report-section">
+          <h3>Wave Status</h3>
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead><tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:8px;color:var(--text-muted)">Wave</th><th style="text-align:left;padding:8px;color:var(--text-muted)">Apps</th><th style="padding:8px;color:var(--text-muted)">Progress</th><th style="padding:8px;color:var(--text-muted)">Status</th></thead>
+            <tbody>
+              <tr><td style="padding:8px;font-weight:500">Wave 1</td><td style="padding:8px;color:var(--text-muted)">CustomerPortal, OrderService</td><td style="padding:8px;text-align:center;color:var(--accent-emerald);font-family:var(--font-mono);font-weight:700">100%</td><td style="padding:8px;text-align:center"><span class="status-pill status-active">Complete</span></td></tr>
+              <tr><td style="padding:8px;font-weight:500">Wave 2</td><td style="padding:8px;color:var(--text-muted)">PaymentGateway, InventoryAPI</td><td style="padding:8px;text-align:center;color:var(--accent-amber);font-family:var(--font-mono);font-weight:700">62%</td><td style="padding:8px;text-align:center"><span class="status-pill status-at-risk">At Risk</span></td></tr>
+              <tr><td style="padding:8px;font-weight:500">Wave 3</td><td style="padding:8px;color:var(--text-muted)">AuthService, ReportingEngine</td><td style="padding:8px;text-align:center;color:var(--text-muted);font-family:var(--font-mono);font-weight:700">0%</td><td style="padding:8px;text-align:center"><span class="status-pill status-pending">Planned</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="report-section">
+          <h3>Key Decisions Required</h3>
+          <ol style="font-size:13px;line-height:2;color:var(--text-secondary);padding-left:20px">
+            <li>Approve Cloud SQL Proxy optimisation budget (+$15K) to resolve PaymentGateway latency</li>
+            <li>Confirm Wave 3 engineering resources are available from 17 March 2025</li>
+            <li>Resolution approach for regulatory freeze risk during cutover window</li>
+          </ol>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:20px">
+          <button onclick="window.print()" style="flex:1;padding:10px;background:var(--gradient-amber);border:none;border-radius:var(--radius-sm);color:white;font-family:var(--font-display);font-weight:600;font-size:13px;cursor:pointer">Print / Export PDF</button>
+          <button onclick="JarvisNotify.success('Report sent to stakeholders')" style="flex:1;padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:none;color:var(--text-secondary);font-family:var(--font-display);font-weight:600;font-size:13px;cursor:pointer">Email to Stakeholders</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── DETAIL PANELS ─────────────────────────────────────────────
+function openRiskDetail(id) {
+  const risk = DEMO_RISKS.find(r=>r.id===id);
+  if (!risk) return;
+  const ratingColor = { critical:'var(--accent-red)', high:'var(--accent-amber)', medium:'var(--accent-blue)', low:'var(--text-muted)' };
+  JarvisPanel.open(risk.title, () => `
+    <div class="panel-header">
+      <div class="panel-title">${risk.title}</div>
+      <div class="panel-subtitle">${risk.id} · ${risk.app}</div>
+    </div>
+    <div class="panel-metric-strip">
+      <div class="panel-metric"><div class="panel-metric-label">Probability</div><div class="panel-metric-value" style="text-transform:capitalize">${risk.prob}</div></div>
+      <div class="panel-metric"><div class="panel-metric-label">Impact</div><div class="panel-metric-value" style="text-transform:capitalize">${risk.impact}</div></div>
+      <div class="panel-metric"><div class="panel-metric-label">Rating</div><div class="panel-metric-value" style="color:${ratingColor[risk.rating]};text-transform:capitalize">${risk.rating}</div></div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-section-title">Mitigation Strategy</div>
+      <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;padding:12px;background:var(--bg-surface);border-radius:var(--radius-sm);border:1px solid var(--border)">${risk.mitigation}</div>
+    </div>
+    <div class="panel-section" style="margin-top:16px">
+      <div class="panel-section-title">AI Action Recommendation</div>
+      <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;padding:12px;background:rgba(245,158,11,0.05);border:1px solid rgba(245,158,11,0.2);border-radius:var(--radius-sm)">
+        Based on similar migration patterns, this risk should be escalated to senior stakeholders with a 48-hour resolution window. Recommend scheduling a technical war room with Cloud Architect and DBA teams to agree remediation approach.
+      </div>
+    </div>
+    <div style="margin-top:16px;display:flex;gap:8px">
+      <button onclick="mitigateRisk('${risk.id}')" style="flex:1;padding:10px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:var(--radius-sm);color:var(--accent-emerald);font-family:var(--font-display);font-weight:600;font-size:13px;cursor:pointer">Mark Mitigated</button>
+      <button onclick="JarvisPanel.close()" style="padding:10px 20px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-secondary);font-family:var(--font-display);font-weight:600;font-size:13px;cursor:pointer">Close</button>
+    </div>
+  `, ['PMO Engine', 'Risk Register']);
+}
+
+function openPhaseDetail(wave) {
+  const phase = DEMO_PHASES.find(p=>p.wave===wave);
+  if (!phase) return;
+  JarvisPanel.open(`${phase.wave} Details`, () => `
+    <div class="panel-header">
+      <div class="panel-title">${phase.wave}</div>
+      <div class="panel-subtitle">${phase.apps}</div>
+    </div>
+    <div class="panel-metric-strip">
+      <div class="panel-metric"><div class="panel-metric-label">Progress</div><div class="panel-metric-value text-amber">${phase.pct}%</div></div>
+      <div class="panel-metric"><div class="panel-metric-label">Start</div><div class="panel-metric-value">${phase.start}</div></div>
+      <div class="panel-metric"><div class="panel-metric-label">End</div><div class="panel-metric-value">${phase.end}</div></div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-section-title">Owner</div>
+      <div style="font-size:13px;color:var(--text-secondary);padding:8px">${phase.owner}</div>
+    </div>
+    <div class="panel-section" style="margin-top:12px">
+      <div class="panel-section-title">Notes</div>
+      <div style="font-size:13px;color:var(--text-secondary);padding:8px;line-height:1.6">${phase.notes}</div>
+    </div>
+    <div style="margin-top:16px">
+      <button onclick="JarvisPanel.close()" style="width:100%;padding:10px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-secondary);font-family:var(--font-display);font-weight:600;font-size:13px;cursor:pointer">Close</button>
+    </div>
+  `, ['PMO Engine', 'Phases']);
+}
+
+function mitigateRisk(id) {
+  const risk = DEMO_RISKS.find(r=>r.id===id);
+  if (risk) { risk.status='mitigated'; renderRisks(); renderDashTopRisks(); }
+  JarvisNotify.success(`Risk ${id} marked as mitigated`);
+  JarvisPanel.close();
+}
+</script>
+</body>
+</html>

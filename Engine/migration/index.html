@@ -1,0 +1,1668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J.A.R.V.I.S. — Migration Engine</title>
+<link rel="stylesheet" href="../shared/jarvis.css">
+<style>
+/* ─── AGENT STREAM ────────────────────────────── */
+.agent-stream {
+  background: var(--bg-deep); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 12px;
+  height: 240px; overflow-y: auto;
+  font-family: var(--font-mono); font-size: 11px;
+}
+.agent-stream-line { display: flex; gap: 10px; padding: 2px 0; }
+.stream-time   { color: var(--text-muted); flex-shrink: 0; }
+.stream-agent  { font-weight: 600; flex-shrink: 0; min-width: 120px; }
+.stream-info    { color: var(--jarvis-glow); }
+.stream-success { color: var(--accent-emerald); }
+.stream-warn    { color: var(--accent-amber); }
+.stream-error   { color: var(--accent-red); }
+.stream-text   { color: var(--text-secondary); flex: 1; white-space: pre-wrap; word-break: break-all; }
+
+/* ─── WAVE CARD ───────────────────────────────── */
+.wave-card {
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+  background: var(--bg-primary); margin-bottom: 16px;
+  overflow: hidden; transition: all 0.2s;
+}
+.wave-card:hover { border-color: var(--border-light); }
+.wave-card.active { border-color: rgba(139,92,246,0.4); }
+.wave-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; cursor: pointer;
+  border-bottom: 1px solid var(--border);
+}
+.wave-number {
+  width: 40px; height: 40px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-weight: 700; font-size: 16px;
+  background: rgba(139,92,246,0.15); color: var(--accent-purple);
+  border: 1px solid rgba(139,92,246,0.25); flex-shrink: 0;
+}
+.wave-name { font-family: var(--font-display); font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+.wave-meta { font-size: 12px; color: var(--text-muted); }
+.wave-progress-wrap { padding: 16px 20px; }
+.wave-progress-bar { height: 8px; background: var(--bg-elevated); border-radius: 4px; overflow: hidden; margin-bottom: 6px; }
+.wave-progress-fill { height: 100%; border-radius: 4px; background: var(--gradient-purple); transition: width 0.8s ease; }
+.wave-apps-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; padding: 0 20px 20px; }
+
+/* ─── APP MIGRATION CARD ──────────────────────── */
+.app-mig-card {
+  padding: 14px; border: 1px solid var(--border);
+  border-radius: var(--radius-md); background: var(--bg-surface);
+  cursor: pointer; transition: all 0.2s; position: relative;
+  border-left: 3px solid transparent;
+}
+.app-mig-card:hover { border-color: var(--border-light); border-left-color: var(--accent-purple); }
+.app-mig-card.running { border-left-color: var(--jarvis-glow); animation: cardPulse 2s ease-in-out infinite; }
+.app-mig-card.done    { border-left-color: var(--accent-emerald); }
+.app-mig-card.failed  { border-left-color: var(--accent-red); }
+@keyframes cardPulse {
+  0%, 100% { box-shadow: none; }
+  50%       { box-shadow: 0 0 12px rgba(56,189,248,0.15); }
+}
+.app-mig-name  { font-family: var(--font-display); font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+.app-mig-meta  { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; font-family: var(--font-mono); }
+.app-mig-steps { display: flex; gap: 4px; flex-wrap: wrap; }
+.mig-step {
+  font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 4px;
+  font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.4px;
+}
+.step-pending  { background: var(--bg-elevated); color: var(--text-muted); }
+.step-running  { background: rgba(56,189,248,0.15); color: var(--jarvis-glow); }
+.step-done     { background: rgba(16,185,129,0.15); color: var(--accent-emerald); }
+.step-failed   { background: rgba(239,68,68,0.15); color: var(--accent-red); }
+
+/* ─── TERRAFORM VIEWER ────────────────────────── */
+.terraform-panel {
+  background: var(--bg-deep); border: 1px solid var(--border);
+  border-radius: var(--radius-md); overflow: hidden;
+}
+.terraform-panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px; border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+.terraform-code {
+  padding: 16px; font-family: var(--font-mono); font-size: 12px;
+  line-height: 1.7; color: var(--text-secondary);
+  overflow: auto; max-height: 500px; white-space: pre;
+  tab-size: 2;
+}
+.tf-keyword { color: #F472B6; }
+.tf-string  { color: #86EFAC; }
+.tf-comment { color: var(--text-muted); }
+.tf-attr    { color: #93C5FD; }
+.tf-value   { color: #FCD34D; }
+
+/* ─── APPROVAL ROW ────────────────────────────── */
+.approval-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+.approval-row:hover { background: var(--bg-elevated); }
+.approval-icon {
+  width: 36px; height: 36px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; flex-shrink: 0;
+}
+.approval-info { flex: 1; }
+.approval-title { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+.approval-sub   { font-size: 11px; color: var(--text-muted); }
+.approval-actions { display: flex; gap: 6px; }
+.btn-approve-sm { padding: 5px 12px; border-radius: 4px; border: 1px solid rgba(16,185,129,0.3); background: rgba(16,185,129,0.1); color: var(--accent-emerald); font-size: 11px; font-weight: 600; cursor: pointer; font-family: var(--font-display); transition: all 0.2s; }
+.btn-approve-sm:hover { background: rgba(16,185,129,0.2); }
+.btn-reject-sm  { padding: 5px 12px; border-radius: 4px; border: 1px solid rgba(239,68,68,0.3); background: rgba(239,68,68,0.1); color: var(--accent-red); font-size: 11px; font-weight: 600; cursor: pointer; font-family: var(--font-display); transition: all 0.2s; }
+.btn-reject-sm:hover { background: rgba(239,68,68,0.2); }
+
+/* ─── PIPELINE STEP ───────────────────────────── */
+.pipeline-view { display: flex; flex-direction: column; gap: 0; }
+.pipeline-stage {
+  display: flex; align-items: stretch; gap: 0;
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+  margin-bottom: 8px; overflow: hidden; background: var(--bg-surface);
+}
+.pipeline-stage-label {
+  width: 140px; flex-shrink: 0; padding: 12px 16px;
+  background: var(--bg-elevated); border-right: 1px solid var(--border);
+  display: flex; align-items: center;
+  font-family: var(--font-display); font-weight: 600; font-size: 12px;
+}
+.pipeline-jobs { display: flex; align-items: center; gap: 8px; padding: 10px 16px; flex: 1; flex-wrap: wrap; }
+.pipeline-job {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); font-size: 12px;
+  font-family: var(--font-mono); cursor: pointer; transition: all 0.2s;
+}
+.pipeline-job.job-done    { border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.06); }
+.pipeline-job.job-running { border-color: rgba(56,189,248,0.3); background: rgba(56,189,248,0.06); animation: cardPulse 2s infinite; }
+.pipeline-job.job-pending { opacity: 0.5; }
+.pipeline-job.job-failed  { border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.06); }
+.job-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.job-dot-done    { background: var(--accent-emerald); }
+.job-dot-running { background: var(--jarvis-glow); box-shadow: 0 0 4px var(--jarvis-glow); }
+.job-dot-pending { background: var(--bg-hover); }
+.job-dot-failed  { background: var(--accent-red); }
+
+/* ─── METRIC ROW ─────────────────────────────── */
+.metric-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
+.metric-card { padding: 16px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.metric-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 6px; font-family: var(--font-display); }
+.metric-value { font-family: var(--font-mono); font-weight: 700; font-size: 28px; line-height: 1; }
+.metric-sub   { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+/* ─── DIFF VIEW ──────────────────────────────── */
+.diff-line { font-family: var(--font-mono); font-size: 12px; padding: 1px 12px; white-space: pre; }
+.diff-add    { background: rgba(16,185,129,0.08); color: #86EFAC; }
+.diff-remove { background: rgba(239,68,68,0.08); color: #FCA5A5; }
+.diff-ctx    { color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<!-- ─── TOP BAR ───────────────────────────────────────── -->
+<div class="top-bar">
+  <div class="logo">
+    <div class="logo-mark"></div>
+    <div class="logo-text">J.A.R.V.I.S.<span>Migration Execution Engine</span></div>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-page="overview">Overview</button>
+    <button class="nav-tab" data-page="waves">Wave Planner</button>
+    <button class="nav-tab" data-page="execution">App Migration</button>
+    <button class="nav-tab" data-page="terraform">Terraform</button>
+    <button class="nav-tab" data-page="pipelines">Pipelines</button>
+    <button class="nav-tab" data-page="approvals">Approvals</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted)" id="system-clock"></div>
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md)">
+      <div style="width:28px;height:28px;border-radius:50%;background:var(--gradient-purple);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:600;font-size:11px;color:white" id="persona-avatar">ME</div>
+      <div><div style="font-size:12px;font-weight:600;font-family:var(--font-display)" id="persona-label">Migration Engine</div><div style="font-size:10px;color:var(--text-muted)">Execution Platform</div></div>
+    </div>
+    <button onclick="JarvisAuth.logout()" class="btn-logout">← Exit</button>
+  </div>
+</div>
+
+<!-- ─── SYSTEM STATUS ──────────────────────────────────── -->
+<div class="system-status">
+  <div class="system-status-left">
+    <div class="system-status-item"><div class="active-indicator"></div><span>MIGRATION ENGINE ONLINE</span></div>
+    <div class="system-status-item"><span>UPTIME: <span style="color:var(--accent-emerald)" id="system-uptime">00:00:00</span></span></div>
+    <div class="system-status-item"><span>BACKEND: <span id="backend-status" style="color:var(--accent-amber)">CONNECTING...</span></span></div>
+    <div class="system-status-item"><span>ACTIVE WAVE: <span id="active-wave-status" style="color:var(--accent-purple)">NONE</span></span></div>
+    <div class="system-status-item"><span>AGENTS: <span style="color:var(--accent-emerald)">READY</span></span></div>
+  </div>
+  <div class="system-status-right">wave execution · terraform generation · pipeline deployment · gcp migration</div>
+</div>
+
+<!-- ─── KPI STRIP ─────────────────────────────────────── -->
+<div class="kpi-strip">
+  <div class="kpi-item"><div class="kpi-label">Total Apps</div><div class="kpi-value text-cyan" id="kpi-total">—</div><div class="kpi-trend">In scope</div></div>
+  <div class="kpi-item"><div class="kpi-label">Migrated</div><div class="kpi-value" style="color:var(--accent-emerald)" id="kpi-migrated">—</div><div class="kpi-trend up" id="kpi-migrated-pct">—%</div></div>
+  <div class="kpi-item"><div class="kpi-label">In Progress</div><div class="kpi-value" style="color:var(--jarvis-glow)" id="kpi-inprogress">—</div><div class="kpi-trend warn">Currently active</div></div>
+  <div class="kpi-item"><div class="kpi-label">Pending</div><div class="kpi-value" style="color:var(--accent-amber)" id="kpi-pending">—</div><div class="kpi-trend warn">Queued</div></div>
+  <div class="kpi-item"><div class="kpi-label">Failed</div><div class="kpi-value" style="color:var(--accent-red)" id="kpi-failed">0</div><div class="kpi-trend">Needs attention</div></div>
+  <div class="kpi-item"><div class="kpi-label">Waves</div><div class="kpi-value" style="color:var(--accent-purple)" id="kpi-waves">—</div><div class="kpi-trend">Planned</div></div>
+  <div class="kpi-item"><div class="kpi-label">Approvals</div><div class="kpi-value" style="color:var(--accent-blue)" id="kpi-approvals">—</div><div class="kpi-trend warn">Pending review</div></div>
+  <div class="kpi-item"><div class="kpi-label">Wave Progress</div><div class="kpi-value" style="color:var(--jarvis-glow)" id="kpi-wavepct">—%</div><div class="kpi-trend">Current wave</div></div>
+</div>
+
+<!-- ─── DETAIL PANEL ───────────────────────────────────── -->
+<div class="panel-backdrop" id="panel-backdrop"></div>
+<div class="detail-panel" id="detail-panel">
+  <div class="panel-top">
+    <div class="panel-breadcrumbs" id="panel-breadcrumbs"></div>
+    <button class="panel-close" id="panel-close-btn">&times;</button>
+  </div>
+  <div class="panel-content" id="panel-content"></div>
+</div>
+
+<!-- ─── MAIN CONTENT ──────────────────────────────────── -->
+<div class="main-content">
+
+<!-- ══ OVERVIEW PAGE ════════════════════════════════════ -->
+<div id="page-overview" class="page active">
+  <div class="section-header animate-in delay-1">
+    <div class="section-title">Migration Overview</div>
+    <div class="section-subtitle">Real-time wave execution status, agent activity, and deployment progress</div>
+  </div>
+
+  <div class="metric-row animate-in delay-2">
+    <div class="metric-card"><div class="metric-label">Apps Migrated</div><div class="metric-value text-emerald" id="ov-migrated">—</div><div class="metric-sub">To GCP</div></div>
+    <div class="metric-card"><div class="metric-label">Current Wave</div><div class="metric-value text-purple" id="ov-wave">—</div><div class="metric-sub">Active</div></div>
+    <div class="metric-card"><div class="metric-label">Wave Progress</div><div class="metric-value text-cyan" id="ov-wavepct">—%</div><div class="metric-sub">Completion</div></div>
+    <div class="metric-card"><div class="metric-label">Pending Approvals</div><div class="metric-value text-amber" id="ov-approvals">—</div><div class="metric-sub">Needs review</div></div>
+    <div class="metric-card"><div class="metric-label">TF Resources</div><div class="metric-value text-blue" id="ov-tf">—</div><div class="metric-sub">Generated</div></div>
+  </div>
+
+  <div class="grid-2-1 animate-in delay-3">
+    <!-- Wave Progress Card -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Wave Execution Progress</div>
+        <span class="card-badge badge-live">Live</span>
+      </div>
+      <div class="card-body" id="ov-wave-progress">
+        <div style="text-align:center;padding:40px 20px;color:var(--text-muted)">
+          <div style="font-size:36px;margin-bottom:8px">🌊</div>
+          <div style="font-family:var(--font-display);font-weight:600;margin-bottom:4px">No Active Wave</div>
+          <div style="font-size:12px">Go to Wave Planner to start a migration wave</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Agent Status -->
+    <div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-header"><div class="card-title">Migration Agents</div><span class="card-badge badge-live">Active</span></div>
+        <div class="card-body" style="padding:12px">
+          <div id="agent-status-ovr">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px"><div style="width:6px;height:6px;border-radius:50%;background:var(--accent-emerald)"></div>Wave Orchestrator Agent</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px"><div style="width:6px;height:6px;border-radius:50%;background:var(--accent-emerald)"></div>Terraform Generator Agent</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px"><div style="width:6px;height:6px;border-radius:50%;background:var(--accent-emerald)"></div>Pipeline Modifier Agent</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px"><div style="width:6px;height:6px;border-radius:50%;background:var(--accent-emerald)"></div>GCP Deploy Agent</div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px"><div style="width:6px;height:6px;border-radius:50%;background:var(--accent-emerald)"></div>Approval Gateway Agent</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Migration Stats</div></div>
+        <div class="card-body" style="padding:12px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;font-family:var(--font-display)">Avg Duration</div><div style="font-family:var(--font-mono);font-weight:600;font-size:18px" id="stat-avg-dur">4.2h</div></div>
+            <div><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;font-family:var(--font-display)">Success Rate</div><div style="font-family:var(--font-mono);font-weight:600;font-size:18px;color:var(--accent-emerald)" id="stat-success">94%</div></div>
+            <div><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;font-family:var(--font-display)">TF Files Gen</div><div style="font-family:var(--font-mono);font-weight:600;font-size:18px" id="stat-tf">—</div></div>
+            <div><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;font-family:var(--font-display)">GCP Resources</div><div style="font-family:var(--font-mono);font-weight:600;font-size:18px" id="stat-gcp">—</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Activity -->
+  <div class="card animate-in delay-4 mt-20">
+    <div class="card-header">
+      <div class="card-title">Agent Activity Log</div>
+      <button onclick="clearStream()" style="font-size:11px;color:var(--text-muted);background:none;border:none;cursor:pointer;font-family:var(--font-display)">Clear</button>
+    </div>
+    <div class="agent-stream" id="agent-stream-main" style="height:180px;border:none;border-radius:0">
+      <div class="agent-stream-line"><span class="stream-time">--:--:--</span><span class="stream-agent stream-info">MIGRATION</span><span class="stream-text">Migration Engine ready. Awaiting wave activation...</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ WAVE PLANNER PAGE ════════════════════════════════ -->
+<div id="page-waves" class="page">
+  <div class="section-header animate-in delay-1">
+    <div class="section-title">Wave Planner</div>
+    <div class="section-subtitle">Plan and execute migration waves with application bundles</div>
+  </div>
+
+  <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap" class="animate-in delay-2">
+    <div style="padding:10px 16px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);text-align:center">
+      <div style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--accent-purple)" id="wp-total-waves">—</div>
+      <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:2px">Total Waves</div>
+    </div>
+    <div style="padding:10px 16px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);text-align:center">
+      <div style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--accent-emerald)" id="wp-complete">—</div>
+      <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:2px">Complete</div>
+    </div>
+    <div style="padding:10px 16px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);text-align:center">
+      <div style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--jarvis-glow)" id="wp-active">—</div>
+      <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:2px">Active</div>
+    </div>
+    <div style="padding:10px 16px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);text-align:center">
+      <div style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--accent-amber)" id="wp-planned">—</div>
+      <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:2px">Planned</div>
+    </div>
+    <div style="flex:1"></div>
+    <button onclick="importBundles()" style="padding:9px 18px;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.3);border-radius:var(--radius-sm);color:var(--accent-purple);font-family:var(--font-display);font-weight:600;font-size:13px;cursor:pointer">Import from Assessment →</button>
+  </div>
+
+  <div id="waves-list">
+    <div style="text-align:center;padding:80px;color:var(--text-muted)">
+      <div style="font-size:48px;margin-bottom:12px">🌊</div>
+      <div style="font-family:var(--font-display);font-weight:600;font-size:16px;margin-bottom:4px">No Waves Planned</div>
+      <div style="font-size:13px;margin-bottom:16px">Import approved bundles from the Assessment Engine to create migration waves</div>
+      <button onclick="importBundles()" style="padding:10px 24px;background:var(--gradient-purple);border:none;border-radius:var(--radius-sm);color:white;font-family:var(--font-display);font-weight:600;cursor:pointer">Import Bundles</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ APP MIGRATION PAGE ════════════════════════════════ -->
+<div id="page-execution" class="page">
+  <div class="section-header animate-in delay-1">
+    <div class="section-title">Application Migration</div>
+    <div class="section-subtitle">Per-application migration execution with real-time agent streaming</div>
+  </div>
+
+  <div class="grid-2-1 animate-in delay-2">
+    <div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="font-family:var(--font-display);font-weight:600;font-size:14px">Applications</div>
+        <div style="display:flex;gap:8px">
+          <select id="filter-wave" onchange="filterByWave(this.value)" style="padding:6px 10px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-secondary);font-size:12px;font-family:var(--font-display)">
+            <option value="all">All Waves</option>
+            <option value="1">Wave 1</option>
+            <option value="2">Wave 2</option>
+            <option value="3">Wave 3</option>
+          </select>
+          <select id="filter-status" onchange="filterByStatus(this.value)" style="padding:6px 10px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-secondary);font-size:12px;font-family:var(--font-display)">
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="running">Running</option>
+            <option value="done">Migrated</option>
+            <option value="failed">Failed</option>
+          </select>
+        </div>
+      </div>
+      <div id="app-mig-list" class="wave-apps-grid" style="grid-template-columns:1fr;gap:8px">
+        <div style="text-align:center;padding:60px;color:var(--text-muted)">
+          <div style="font-size:32px;margin-bottom:8px">⚡</div>
+          <div>Start a wave to begin migrating applications</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-header">
+          <div class="card-title">Migration Agent Stream</div>
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--accent-emerald);box-shadow:0 0 6px var(--accent-emerald)"></div>
+        </div>
+        <div class="agent-stream" id="agent-stream-exec" style="border:none;border-radius:0;height:260px">
+          <div class="agent-stream-line"><span class="stream-time">--:--:--</span><span class="stream-agent stream-info">ORCHESTRATOR</span><span class="stream-text">Waiting for app selection...</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Migration Steps</div></div>
+        <div class="card-body" style="padding:12px" id="mig-steps-panel">
+          <div style="font-size:12px;color:var(--text-muted)">Select an application to view migration steps</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TERRAFORM PAGE ═══════════════════════════════════ -->
+<div id="page-terraform" class="page">
+  <div class="section-header animate-in delay-1">
+    <div class="section-title">Terraform Generator</div>
+    <div class="section-subtitle">AI-generated infrastructure-as-code for GCP resource provisioning</div>
+  </div>
+
+  <div class="grid-2-1 animate-in delay-2">
+    <div>
+      <!-- App Selector -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header">
+          <div class="card-title">Generate Terraform</div>
+          <span class="card-badge badge-purple">Claude AI</span>
+        </div>
+        <div class="card-body">
+          <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+            <select id="tf-app-select" style="flex:1;padding:8px 12px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-family:var(--font-display);font-size:13px">
+              <option value="">Select application...</option>
+              <option value="CustomerPortal">CustomerPortal (Pattern A)</option>
+              <option value="OrderService">OrderService (Pattern B)</option>
+              <option value="PaymentGateway">PaymentGateway (Pattern A)</option>
+              <option value="InventoryAPI">InventoryAPI (Pattern F)</option>
+              <option value="ReportingEngine">ReportingEngine (Pattern E)</option>
+              <option value="AuthService">AuthService (Pattern D)</option>
+              <option value="LegacyBilling">LegacyBilling (Pattern I)</option>
+            </select>
+            <button onclick="generateTerraform()" style="padding:8px 18px;background:var(--gradient-purple);border:none;border-radius:var(--radius-sm);color:white;font-family:var(--font-display);font-weight:600;font-size:13px;cursor:pointer">Generate</button>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap" id="tf-resource-chips">
+            <span style="font-size:11px;color:var(--text-muted)">Select an app to see resource types</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Terraform Code Output -->
+      <div class="terraform-panel">
+        <div class="terraform-panel-header">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="width:10px;height:10px;border-radius:50%;background:#7C3AED;display:inline-block"></span>
+            <span style="font-family:var(--font-mono);font-size:12px;color:var(--text-secondary)" id="tf-filename">main.tf</span>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button onclick="copyTerraform()" style="padding:4px 10px;border:1px solid var(--border);border-radius:4px;background:var(--bg-surface);color:var(--text-muted);font-family:var(--font-display);font-size:11px;cursor:pointer">Copy</button>
+            <button onclick="downloadTerraform()" style="padding:4px 10px;border:1px solid var(--border);border-radius:4px;background:var(--bg-surface);color:var(--text-muted);font-family:var(--font-display);font-size:11px;cursor:pointer">Download</button>
+          </div>
+        </div>
+        <div class="terraform-code" id="tf-code-output"><span style="color:var(--text-muted)">// Select an application and click Generate to produce Terraform IaC</span></div>
+      </div>
+    </div>
+
+    <!-- Terraform Sidebar -->
+    <div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-header"><div class="card-title">Resource Summary</div></div>
+        <div class="card-body" style="padding:12px" id="tf-resource-summary">
+          <div style="font-size:12px;color:var(--text-muted)">Generate Terraform to see resource summary</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-header"><div class="card-title">GCP Resources Map</div></div>
+        <div class="card-body" style="padding:12px">
+          <div style="font-size:12px;color:var(--text-secondary);line-height:1.8">
+            <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted)">Compute Engine (GCE)</span><span class="badge-live badge" style="padding:2px 6px;font-size:9px">VMs</span></div>
+            <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted)">Cloud SQL</span><span style="font-size:9px;color:var(--accent-blue)">Database</span></div>
+            <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted)">Pub/Sub</span><span style="font-size:9px;color:var(--accent-purple)">Messaging</span></div>
+            <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted)">Cloud Armor + LB</span><span style="font-size:9px;color:var(--accent-amber)">DMZ/WAF</span></div>
+            <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted)">GKE (PCF apps)</span><span style="font-size:9px;color:var(--accent-red)">Kubernetes</span></div>
+            <div style="display:flex;justify-content:space-between;padding:4px 0"><span style="color:var(--text-muted)">VPC + Firewall Rules</span><span style="font-size:9px;color:var(--text-muted)">Networking</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Validation Status</div></div>
+        <div class="card-body" style="padding:12px" id="tf-validation">
+          <div style="font-size:12px;color:var(--text-muted)">Run <code style="font-family:var(--font-mono);background:var(--bg-elevated);padding:1px 4px;border-radius:3px">terraform validate</code> after download</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PIPELINES PAGE ════════════════════════════════════ -->
+<div id="page-pipelines" class="page">
+  <div class="section-header animate-in delay-1">
+    <div class="section-title">CI/CD Pipeline Manager</div>
+    <div class="section-subtitle">Modify and execute GCP deployment pipelines per application</div>
+  </div>
+
+  <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap" class="animate-in delay-2">
+    <select id="pipe-app-select" onchange="loadPipeline(this.value)" style="padding:8px 14px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-family:var(--font-display);font-size:13px">
+      <option value="">Select application...</option>
+      <option value="CustomerPortal">CustomerPortal</option>
+      <option value="OrderService">OrderService</option>
+      <option value="PaymentGateway">PaymentGateway</option>
+      <option value="InventoryAPI">InventoryAPI</option>
+    </select>
+    <select id="pipe-env-select" style="padding:8px 14px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-family:var(--font-display);font-size:13px">
+      <option value="dev">Development</option>
+      <option value="staging">Staging</option>
+      <option value="prod">Production</option>
+    </select>
+    <div style="flex:1"></div>
+    <button onclick="triggerPipeline()" style="padding:8px 18px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:var(--radius-sm);color:var(--accent-emerald);font-family:var(--font-display);font-weight:600;font-size:13px;cursor:pointer">▶ Trigger Pipeline</button>
+    <button onclick="generatePipeline()" style="padding:8px 18px;background:var(--gradient-purple);border:none;border-radius:var(--radius-sm);color:white;font-family:var(--font-display);font-weight:600;font-size:13px;cursor:pointer">Generate Pipeline</button>
+  </div>
+
+  <div class="grid-2-1 animate-in delay-3">
+    <div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Pipeline Stages</div>
+          <span id="pipeline-status-badge" class="card-badge" style="background:var(--bg-elevated);color:var(--text-muted)">— Select App —</span>
+        </div>
+        <div class="card-body" id="pipeline-view">
+          <div style="text-align:center;padding:40px;color:var(--text-muted)">
+            <div style="font-size:32px;margin-bottom:8px">⚙</div>
+            <div>Select an application to view its pipeline</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-header"><div class="card-title">Pipeline Log</div></div>
+        <div class="agent-stream" id="agent-stream-pipe" style="border:none;border-top:1px solid var(--border);border-radius:0;height:220px">
+          <div class="agent-stream-line"><span class="stream-time">--:--:--</span><span class="stream-agent stream-info">PIPELINE</span><span class="stream-text">Awaiting pipeline activation...</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Run History</div></div>
+        <div class="card-body" style="padding:0" id="pipeline-history">
+          <div style="padding:16px;font-size:12px;color:var(--text-muted)">No pipeline runs yet</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ APPROVALS PAGE ═══════════════════════════════════ -->
+<div id="page-approvals" class="page">
+  <div class="section-header animate-in delay-1">
+    <div class="section-title">Approval Gateway</div>
+    <div class="section-subtitle">Review and approve migration execution steps before they proceed</div>
+  </div>
+
+  <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center" class="animate-in delay-2">
+    <div style="display:flex;gap:8px">
+      <button class="filter-chip active" onclick="filterApprovals('all',this)">All</button>
+      <button class="filter-chip" onclick="filterApprovals('pending',this)">Pending</button>
+      <button class="filter-chip" onclick="filterApprovals('approved',this)">Approved</button>
+      <button class="filter-chip" onclick="filterApprovals('rejected',this)">Rejected</button>
+    </div>
+    <div style="flex:1"></div>
+    <button onclick="approveAll()" style="padding:8px 18px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:var(--radius-sm);color:var(--accent-emerald);font-family:var(--font-display);font-weight:600;font-size:13px;cursor:pointer">Approve All Pending</button>
+  </div>
+
+  <div class="card animate-in delay-3">
+    <div class="card-header">
+      <div class="card-title">Approval Queue</div>
+      <span class="card-badge badge-warn" id="approval-queue-count">— Pending</span>
+    </div>
+    <div id="approvals-list">
+      <div style="text-align:center;padding:60px;color:var(--text-muted)">
+        <div style="font-size:32px;margin-bottom:8px">✓</div>
+        <div>No approvals pending</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2 animate-in delay-4 mt-20">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Tool Integrations</div>
+        <span class="card-badge badge-live">ServiceNow · SharePoint · Jenkins</span>
+      </div>
+      <div class="card-body" id="integration-options" style="padding:12px">
+        <div style="font-size:12px;color:var(--text-muted)">Loading integration status...</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Destination GCP Architecture Review</div>
+      </div>
+      <div class="card-body" style="padding:12px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+          <input id="approval-app-id" placeholder="Enter App ID (e.g. DEMO-APP-001)" style="flex:1;min-width:180px;padding:8px 10px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-family:var(--font-mono);font-size:12px">
+          <button onclick="loadArchitecturePreview()" style="padding:8px 12px;background:var(--gradient-purple);border:none;border-radius:var(--radius-sm);color:white;font-family:var(--font-display);font-size:12px;cursor:pointer">Load Review</button>
+        </div>
+        <div id="approval-arch-view" style="font-size:12px;color:var(--text-muted)">Run migration job first, then load review before approval.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end main-content -->
+
+<!-- ─── JARVIS CHAT FAB ────────────────────────────────── -->
+<div class="jarvis-fab" id="jarvis-fab"><div class="jarvis-fab-label">Ask J.A.R.V.I.S.</div></div>
+<div class="jarvis-chat" id="jarvis-chat">
+  <div class="jarvis-chat-header">
+    <div class="jarvis-chat-title"><div class="mini-arc"></div><span>J.A.R.V.I.S. — Migration</span></div>
+    <button class="jarvis-chat-close" id="jarvis-chat-close">&times;</button>
+  </div>
+  <div class="jarvis-chat-context" id="jarvis-chat-context">Migration Engine · Wave Execution · Terraform · GCP Deployment</div>
+  <div class="jarvis-chat-messages" id="jarvis-chat-messages">
+    <div class="jarvis-msg assistant"><div>Hello! I'm the Migration Engine AI. I can help you plan waves, understand Terraform resources, troubleshoot deployments, and guide you through the migration process. What would you like to do?</div></div>
+  </div>
+  <div class="jarvis-suggestions">
+    <div class="jarvis-suggestions-label">Quick Questions</div>
+    <button class="jarvis-suggestion" onclick="JarvisChat.sendSuggestion('How do I start a migration wave?')">How do I start a migration wave?</button>
+    <button class="jarvis-suggestion" onclick="JarvisChat.sendSuggestion('What GCP resources are needed for Pattern A?')">What GCP resources for Pattern A?</button>
+    <button class="jarvis-suggestion" onclick="JarvisChat.sendSuggestion('Explain the approval workflow')">Explain the approval workflow</button>
+  </div>
+  <div class="jarvis-chat-input">
+    <input type="text" id="jarvis-chat-input-field" placeholder="Ask about waves, terraform, deployments...">
+    <button id="jarvis-chat-send">&#10148;</button>
+  </div>
+</div>
+
+<script src="../shared/jarvis.js"></script>
+<script>
+// ── INIT ────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  if (!JarvisAuth.requireAuth()) return;
+  const persona = JarvisAuth.getPersona();
+  if (persona) {
+    document.getElementById('persona-avatar').style.background = persona.gradient || 'linear-gradient(135deg,#8B5CF6,#3B82F6)';
+    document.getElementById('persona-label').textContent = persona.label || 'Migration Engine';
+  }
+  JarvisNav.init('overview');
+  JarvisChat.init();
+  initClock();
+  initUptime();
+  checkBackend();
+  loadDemoData();
+  loadIntegrations();
+});
+
+function initClock() {
+  const el = document.getElementById('system-clock');
+  const tick = () => { if(el) el.textContent = new Date().toUTCString().slice(0,25)+' UTC'; };
+  tick(); setInterval(tick, 1000);
+}
+
+function initUptime() {
+  const start = Date.now();
+  const el = document.getElementById('system-uptime');
+  setInterval(() => {
+    const s = Math.floor((Date.now()-start)/1000);
+    const h = String(Math.floor(s/3600)).padStart(2,'0');
+    const m = String(Math.floor((s%3600)/60)).padStart(2,'0');
+    const sec = String(s%60).padStart(2,'0');
+    if(el) el.textContent = `${h}:${m}:${sec}`;
+  }, 1000);
+}
+
+async function checkBackend() {
+  const el = document.getElementById('backend-status');
+  try {
+    const r = await fetch('http://localhost:8010/api/health', { signal: AbortSignal.timeout(3000) });
+    if (r.ok) { el.textContent = 'CONNECTED'; el.style.color = 'var(--accent-emerald)'; }
+    else { el.textContent = 'DEGRADED'; el.style.color = 'var(--accent-amber)'; }
+  } catch(e) {
+    el.textContent = 'OFFLINE — DEMO MODE'; el.style.color = 'var(--accent-red)';
+  }
+}
+
+// ── DEMO DATA ────────────────────────────────────────────
+let DEMO_WAVES = [];
+let DEMO_APPS = [];
+let DEMO_APPROVALS = [];
+
+const PATTERN_NAMES = {
+  P1: 'Web + DMZ Replatform',
+  P2: 'Global L7 Load Balancer Modernization',
+  P3: 'Database Migration & Cutover',
+  P4: 'Container Platform Move to GKE',
+  P5: 'Messaging Modernization (Pub/Sub)',
+};
+
+const PATTERN_STEPS = {
+  P1: ['DMZ Baseline', 'Terraform', 'Pipeline', 'Blue/Green Deploy', 'Validation', 'Cutover'],
+  P2: ['Route Design', 'Terraform', 'Pipeline', 'Canary Shift', 'Global Validation', 'Cutover'],
+  P3: ['Schema Check', 'DMS Setup', 'CDC Sync', 'Data Parity', 'Cutover', 'Post Cutover'],
+  P4: ['Containerize', 'Terraform', 'Helm Deploy', 'SLO Validation', 'Traffic Shift'],
+  P5: ['Topic Contracts', 'Terraform', 'Subscriber Deploy', 'Replay Test', 'Cutover'],
+};
+
+const PATTERN_RESOURCE_MAP = {
+  P1: ['google_compute_security_policy', 'google_compute_region_instance_group_manager', 'google_sql_database_instance'],
+  P2: ['google_compute_url_map', 'google_compute_backend_service', 'google_compute_target_https_proxy'],
+  P3: ['google_sql_database_instance', 'google_database_migration_service_migration_job', 'google_database_migration_service_connection_profile'],
+  P4: ['google_container_cluster', 'google_container_node_pool', 'google_artifact_registry_repository'],
+  P5: ['google_pubsub_topic', 'google_pubsub_subscription', 'google_cloud_run_service'],
+};
+
+function buildFallbackDemoApps() {
+  const apps = [];
+  const patterns = ['P1', 'P2', 'P3', 'P4', 'P5'];
+  for (let i = 1; i <= 50; i++) {
+    const pattern = patterns[Math.floor((i - 1) / 10)];
+    const wave = Math.floor((i - 1) / 10) + 1;
+    const status = i <= 8 ? 'done' : i <= 14 ? 'running' : i === 19 ? 'failed' : 'pending';
+    const steps = PATTERN_STEPS[pattern] || ['Terraform', 'Pipeline', 'Deploy', 'Validate', 'Cutover'];
+    const currentStep = status === 'done' ? steps.length : status === 'running' ? Math.min(3, steps.length - 1) : status === 'failed' ? Math.min(2, steps.length - 1) : 0;
+    apps.push({
+      id: `DEMO-APP-${String(i).padStart(3, '0')}`,
+      name: `Application-${String(i).padStart(3, '0')}`,
+      pattern,
+      wave,
+      status,
+      steps,
+      currentStep,
+      appToApp: i % 4,
+      appToDb: (i % 3) + 1,
+    });
+  }
+  return apps;
+}
+
+function parseIntegrationCounts(raw) {
+  try {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : (raw || {});
+    const appToApp = Array.isArray(parsed.app_to_app) ? parsed.app_to_app.length : 0;
+    const appToDb = Array.isArray(parsed.app_to_db) ? parsed.app_to_db.length : 0;
+    return { appToApp, appToDb };
+  } catch {
+    return { appToApp: 0, appToDb: 0 };
+  }
+}
+
+function buildAppsFromBackend(items) {
+  return (items || []).slice(0, 50).map((app, idx) => {
+    const pattern = app.pattern_id || 'P1';
+    const wave = Math.floor(idx / 10) + 1;
+    const status = idx <= 7 ? 'done' : idx <= 13 ? 'running' : idx === 18 ? 'failed' : 'pending';
+    const steps = PATTERN_STEPS[pattern] || ['Terraform', 'Pipeline', 'Deploy', 'Validate', 'Cutover'];
+    const currentStep = status === 'done' ? steps.length : status === 'running' ? Math.min(3, steps.length - 1) : status === 'failed' ? Math.min(2, steps.length - 1) : 0;
+    const counts = parseIntegrationCounts(app.findings_json);
+    return {
+      id: app.id,
+      name: app.name,
+      pattern,
+      wave,
+      status,
+      steps,
+      currentStep,
+      appToApp: counts.appToApp,
+      appToDb: counts.appToDb,
+    };
+  });
+}
+
+function buildWavesFromApps(apps) {
+  const waveMeta = {
+    1: { name: 'Wave 1 — DMZ Web Tier', startDate: '2025-02-01', endDate: '2025-03-01', risk: 'high' },
+    2: { name: 'Wave 2 — L7 Global Routing', startDate: '2025-03-02', endDate: '2025-04-01', risk: 'medium' },
+    3: { name: 'Wave 3 — Data Platform Cutover', startDate: '2025-04-02', endDate: '2025-05-01', risk: 'high' },
+    4: { name: 'Wave 4 — Container Platform Move', startDate: '2025-05-02', endDate: '2025-06-01', risk: 'medium' },
+    5: { name: 'Wave 5 — Eventing Modernization', startDate: '2025-06-02', endDate: '2025-07-01', risk: 'medium' },
+  };
+  return [1, 2, 3, 4, 5].map((id) => {
+    const waveApps = apps.filter((a) => a.wave === id);
+    const done = waveApps.filter((a) => a.status === 'done').length;
+    const running = waveApps.filter((a) => a.status === 'running').length;
+    const failed = waveApps.filter((a) => a.status === 'failed').length;
+    const progress = waveApps.length ? Math.round(((done + running * 0.5) / waveApps.length) * 100) : 0;
+    const status = running > 0 ? 'active' : progress === 100 ? 'complete' : 'planned';
+    return {
+      id,
+      name: waveMeta[id].name,
+      apps: waveApps.map((a) => a.name),
+      status,
+      progress,
+      startDate: waveMeta[id].startDate,
+      endDate: waveMeta[id].endDate,
+      risk: waveMeta[id].risk,
+      failed,
+    };
+  });
+}
+
+function buildApprovalsFromApps(apps) {
+  const pendingApps = apps.filter((a) => a.status === 'pending').slice(0, 6);
+  const runningApps = apps.filter((a) => a.status === 'running').slice(0, 4);
+  const approvals = [
+    {
+      id: 'APR-001',
+      type: 'Wave Start',
+      title: 'Start Wave 3 Migration',
+      app: 'Wave 3 — Data Platform Cutover',
+      description: 'Approve wave activation with DMS pre-check gates and rollback hooks.',
+      priority: 'high',
+      status: 'pending',
+    },
+  ];
+  runningApps.forEach((a, index) => {
+    approvals.push({
+      id: `APR-${String(index + 2).padStart(3, '0')}`,
+      type: 'Cutover',
+      title: `Cutover Approval — ${a.name}`,
+      app: a.name,
+      description: `Review canary result and approve production traffic shift for ${a.pattern}.`,
+      priority: index < 2 ? 'critical' : 'high',
+      status: 'pending',
+    });
+  });
+  pendingApps.slice(0, 3).forEach((a, offset) => {
+    approvals.push({
+      id: `APR-${String(offset + 20).padStart(3, '0')}`,
+      type: 'Terraform',
+      title: `Terraform Plan Review — ${a.name}`,
+      app: a.name,
+      description: `Generated ${PATTERN_RESOURCE_MAP[a.pattern]?.length || 3} primary resources for ${PATTERN_NAMES[a.pattern] || a.pattern}.`,
+      priority: 'medium',
+      status: offset === 0 ? 'approved' : 'pending',
+    });
+  });
+  return approvals;
+}
+
+window._demoWaves     = DEMO_WAVES;
+window._demoApps      = DEMO_APPS;
+window._demoApprovals = DEMO_APPROVALS;
+
+function refreshSelectors() {
+  const tfSelect = document.getElementById('tf-app-select');
+  const pipeSelect = document.getElementById('pipe-app-select');
+  const waveSelect = document.getElementById('filter-wave');
+
+  if (tfSelect) {
+    tfSelect.innerHTML = '<option value="">Select application...</option>' + DEMO_APPS.map(a => `<option value="${a.id}">${a.name} (${a.pattern})</option>`).join('');
+  }
+
+  if (pipeSelect) {
+    pipeSelect.innerHTML = '<option value="">Select application...</option>' + DEMO_APPS.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+  }
+
+  if (waveSelect) {
+    waveSelect.innerHTML = '<option value="all">All Waves</option>' + DEMO_WAVES.map(w => `<option value="${w.id}">Wave ${w.id}</option>`).join('');
+  }
+}
+
+function setDataset(apps) {
+  DEMO_APPS = apps.length ? apps : buildFallbackDemoApps();
+  DEMO_WAVES = buildWavesFromApps(DEMO_APPS);
+  DEMO_APPROVALS = buildApprovalsFromApps(DEMO_APPS);
+
+  window._demoWaves = DEMO_WAVES;
+  window._demoApps = DEMO_APPS;
+  window._demoApprovals = DEMO_APPROVALS;
+
+  refreshSelectors();
+}
+
+async function loadDemoData() {
+  try {
+    const res = await JarvisAPI.assessment.getApplications({});
+    const backendApps = buildAppsFromBackend(res.items || []);
+    setDataset(backendApps);
+  } catch {
+    setDataset(buildFallbackDemoApps());
+  }
+
+  const total = DEMO_APPS.length;
+  const migrated = DEMO_APPS.filter(a => a.status === 'done').length;
+  const inProgress = DEMO_APPS.filter(a => a.status === 'running').length;
+  const failed = DEMO_APPS.filter(a => a.status === 'failed').length;
+  const pending = Math.max(total - migrated - inProgress - failed, 0);
+  const activeWave = DEMO_WAVES.find(w => w.status === 'active') || DEMO_WAVES[0];
+  const approvalsPending = DEMO_APPROVALS.filter(a => a.status === 'pending').length;
+
+  // KPIs
+  document.getElementById('kpi-total').textContent     = String(total);
+  document.getElementById('kpi-migrated').textContent  = String(migrated);
+  document.getElementById('kpi-migrated-pct').textContent = `${total ? Math.round((migrated / total) * 100) : 0}%`;
+  document.getElementById('kpi-inprogress').textContent = String(inProgress);
+  document.getElementById('kpi-pending').textContent   = String(pending);
+  document.getElementById('kpi-failed').textContent    = String(failed);
+  document.getElementById('kpi-waves').textContent     = String(DEMO_WAVES.length);
+  document.getElementById('kpi-approvals').textContent = String(approvalsPending);
+  document.getElementById('kpi-wavepct').textContent   = `${activeWave?.progress || 0}%`;
+  // Overview metrics
+  document.getElementById('ov-migrated').textContent   = String(migrated);
+  document.getElementById('ov-wave').textContent       = String(activeWave?.id || '—');
+  document.getElementById('ov-wavepct').textContent    = `${activeWave?.progress || 0}%`;
+  document.getElementById('ov-approvals').textContent  = String(approvalsPending);
+  document.getElementById('ov-tf').textContent         = String(total * 3);
+  document.getElementById('stat-tf').textContent       = String(total * 2);
+  document.getElementById('stat-gcp').textContent      = String(total * 3);
+  // Wave planner counts
+  document.getElementById('wp-total-waves').textContent = String(DEMO_WAVES.length);
+  document.getElementById('wp-complete').textContent  = String(DEMO_WAVES.filter(w => w.status === 'complete').length);
+  document.getElementById('wp-active').textContent    = String(DEMO_WAVES.filter(w => w.status === 'active').length);
+  document.getElementById('wp-planned').textContent   = String(DEMO_WAVES.filter(w => w.status === 'planned').length);
+  // Active wave indicator
+  document.getElementById('active-wave-status').textContent = activeWave ? `WAVE ${activeWave.id} — ${activeWave.progress}%` : 'NONE';
+
+  renderOverviewWave();
+  renderWaves(DEMO_WAVES);
+  renderApps(DEMO_APPS);
+  renderApprovals(DEMO_APPROVALS);
+  startMainStream();
+}
+
+function renderOverviewWave() {
+  const w = DEMO_WAVES.find(x => x.status === 'active') || DEMO_WAVES[0];
+  if (!w) return;
+  document.getElementById('ov-wave-progress').innerHTML = `
+    <div style="margin-bottom:18px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-family:var(--font-display);font-weight:600;font-size:14px">${w.name}</span>
+        <span style="font-family:var(--font-mono);font-weight:700;font-size:16px;color:var(--accent-purple)">${w.progress}%</span>
+      </div>
+      <div class="wave-progress-bar"><div class="wave-progress-fill" style="width:${w.progress}%"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-top:6px">
+        <span>${w.startDate}</span><span>Target: ${w.endDate}</span>
+      </div>
+    </div>
+    ${w.apps.map(a => {
+      const app = DEMO_APPS.find(x=>x.name===a);
+      const sc = {done:'var(--accent-emerald)',running:'var(--jarvis-glow)',pending:'var(--text-muted)',failed:'var(--accent-red)'}[app?.status||'pending'];
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <div style="width:8px;height:8px;border-radius:50%;background:${sc};flex-shrink:0"></div>
+        <span style="font-size:13px;flex:1">${a}</span>
+        <span style="font-size:11px;font-family:var(--font-mono);color:${sc};text-transform:capitalize">${app?.status||'pending'}</span>
+      </div>`;
+    }).join('')}`;
+}
+
+function renderWaves(waves) {
+  document.getElementById('waves-list').innerHTML = waves.map(w => `
+    <div class="wave-card ${w.status==='active'?'active':''}">
+      <div class="wave-header" onclick="toggleWave(${w.id})">
+        <div style="display:flex;align-items:center;gap:14px">
+          <div class="wave-number">${w.id}</div>
+          <div>
+            <div class="wave-name">${w.name}</div>
+            <div class="wave-meta">${w.apps.length} apps · ${w.startDate} to ${w.endDate}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="status-pill ${w.status==='active'?'status-running':w.status==='planned'?'status-pending':'status-complete'}" style="text-transform:capitalize">${w.status}</span>
+          ${w.status==='planned'?`<button onclick="event.stopPropagation();startWave(${w.id})" style="padding:7px 16px;background:var(--gradient-purple);border:none;border-radius:var(--radius-sm);color:white;font-family:var(--font-display);font-weight:600;font-size:12px;cursor:pointer">Start Wave</button>`:''}
+          ${w.status==='active'?`<button onclick="event.stopPropagation();pauseWave(${w.id})" style="padding:7px 16px;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);border-radius:var(--radius-sm);color:var(--accent-amber);font-family:var(--font-display);font-weight:600;font-size:12px;cursor:pointer">Pause</button>`:''}
+          <span style="color:var(--text-muted);font-size:18px" id="wave-toggle-${w.id}">▾</span>
+        </div>
+      </div>
+      <div class="wave-progress-wrap">
+        <div class="wave-progress-bar"><div class="wave-progress-fill" style="width:${w.progress}%"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted)"><span>${w.progress}% complete</span><span>${w.apps.filter(a=>{const x=DEMO_APPS.find(d=>d.name===a);return x?.status==='done';}).length}/${w.apps.length} apps done</span></div>
+      </div>
+      <div class="wave-apps-grid" id="wave-apps-${w.id}">
+        ${w.apps.map(name => {
+          const app = DEMO_APPS.find(a=>a.name===name) || { name, status:'pending', steps:['Terraform','Pipeline','Deploy','Validate','Cutover'], currentStep:0 };
+          return renderMigAppCard(app);
+        }).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function renderMigAppCard(app) {
+  const statusClass = { done:'done', running:'running', pending:'', failed:'failed' }[app.status] || '';
+  return `<div class="app-mig-card ${statusClass}" onclick="openAppMigDetail('${app.id||app.name}')">
+    <div class="app-mig-name">${app.name}</div>
+    <div class="app-mig-meta">Pattern ${app.pattern?.toUpperCase()||'?'} · Wave ${app.wave} · A2A:${app.appToApp||0} · A2DB:${app.appToDb||0}</div>
+    <div class="app-mig-steps">
+      ${app.steps.map((s,i) => {
+        const cls = i < app.currentStep ? 'step-done' : i === app.currentStep && app.status==='running' ? 'step-running' : 'step-pending';
+        return `<span class="mig-step ${cls}">${s}</span>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+function renderApps(apps) {
+  document.getElementById('app-mig-list').innerHTML = apps.map(app => renderMigAppCard(app)).join('') || '<div style="padding:30px;text-align:center;color:var(--text-muted)">No apps found</div>';
+}
+
+function renderApprovals(approvals) {
+  const filtered = window._approvalFilter && window._approvalFilter !== 'all'
+    ? approvals.filter(a => a.status === window._approvalFilter)
+    : approvals;
+
+  document.getElementById('approval-queue-count').textContent = approvals.filter(a=>a.status==='pending').length + ' Pending';
+
+  const iconMap = { 'Wave Start':'🌊', 'Terraform':'🏗', 'Cutover':'🔀', 'Pipeline':'⚙' };
+  const priorityColor = { critical:'var(--accent-red)', high:'var(--accent-amber)', medium:'var(--accent-blue)', low:'var(--text-muted)' };
+  const bgMap = { critical:'rgba(239,68,68,0.08)', high:'rgba(245,158,11,0.06)', medium:'rgba(59,130,246,0.06)', low:'var(--bg-surface)' };
+
+  document.getElementById('approvals-list').innerHTML = filtered.length ? filtered.map(a => `
+    <div class="approval-row">
+      <div class="approval-icon" style="background:${bgMap[a.priority]};border:1px solid ${priorityColor[a.priority]}30">${iconMap[a.type]||'📋'}</div>
+      <div class="approval-info">
+        <div class="approval-title">${a.title}</div>
+        <div class="approval-sub">${a.description}</div>
+        <div style="margin-top:4px;display:flex;gap:6px">
+          <span style="font-size:10px;padding:1px 6px;border-radius:4px;background:${bgMap[a.priority]};color:${priorityColor[a.priority]};font-family:var(--font-mono);text-transform:uppercase">${a.priority}</span>
+          <span style="font-size:10px;color:var(--text-muted)">${a.app}</span>
+        </div>
+      </div>
+      <div class="approval-actions">
+        ${a.status==='pending' ? `
+          <button class="btn-approve-sm" onclick="handleApproval('${a.id}',true)">✓ Approve</button>
+          <button class="btn-reject-sm" onclick="handleApproval('${a.id}',false)">✕ Reject</button>
+        ` : `<span style="font-size:12px;font-weight:600;color:${a.status==='approved'?'var(--accent-emerald)':'var(--accent-red)'};text-transform:capitalize">${a.status}</span>`}
+      </div>
+    </div>`).join('') : `<div style="padding:40px;text-align:center;color:var(--text-muted)">No ${window._approvalFilter||'pending'} approvals</div>`;
+}
+
+// ── STREAMING SIMULATION ──────────────────────────────────
+function startMainStream() {
+  const activeWave = DEMO_WAVES.find(w => w.status === 'active') || DEMO_WAVES[0];
+  const sampleDone = DEMO_APPS.find(a => a.status === 'done') || DEMO_APPS[0];
+  const sampleRunning = DEMO_APPS.find(a => a.status === 'running') || DEMO_APPS[1] || DEMO_APPS[0];
+  const resources = sampleDone ? (PATTERN_RESOURCE_MAP[sampleDone.pattern] || []).length : 0;
+  const lines = [
+    { agent:'ORCHESTRATOR', text:`Wave ${activeWave?.id || 1} active — ${activeWave?.apps.length || 0} applications in scope`, type:'info' },
+    { agent:'TERRAFORM',    text:`${sampleDone?.name || 'App'}: terraform apply complete (${resources || 3} key resources)`, type:'success' },
+    { agent:'DEPLOY',       text:`${sampleDone?.name || 'App'}: destination runtime provisioned on GCP`, type:'success' },
+    { agent:'DEPLOY',       text:`${sampleRunning?.name || 'App'}: executing migration steps (${sampleRunning?.currentStep || 0}/${sampleRunning?.steps?.length || 5})...`, type:'info' },
+    { agent:'PIPELINE',     text:`${sampleRunning?.name || 'App'}: CI/CD migration gate triggered`, type:'info' },
+  ];
+  let i = 0;
+  const go = () => {
+    if (i < lines.length) {
+      JarvisStream.appendLine('agent-stream-main', lines[i++]);
+      setTimeout(go, 1200);
+    }
+  };
+  setTimeout(go, 800);
+}
+
+function clearStream() {
+  const el = document.getElementById('agent-stream-main');
+  if (el) el.innerHTML = '';
+}
+
+// ── ACTIONS ───────────────────────────────────────────────
+function toggleWave(id) {}
+
+function startWave(id) {
+  const wave = DEMO_WAVES.find(w=>w.id===id);
+  if (!wave) return;
+  wave.status = 'active';
+  document.getElementById('active-wave-status').textContent = `WAVE ${id} — 0%`;
+  JarvisNotify.agent(`Starting Wave ${id}: ${wave.name}`);
+  renderWaves(DEMO_WAVES);
+  JarvisStream.appendLine('agent-stream-main', { agent:'ORCHESTRATOR', text:`Wave ${id} started — ${wave.apps.length} apps queued`, type:'info' });
+  setTimeout(() => {
+    wave.progress = 15;
+    renderWaves(DEMO_WAVES);
+    document.getElementById('active-wave-status').textContent = `WAVE ${id} — 15%`;
+    JarvisNotify.info(`Wave ${id} executing...`);
+  }, 2000);
+}
+
+function pauseWave(id) {
+  JarvisNotify.warn(`Wave ${id} paused`);
+  JarvisStream.appendLine('agent-stream-main', { agent:'ORCHESTRATOR', text:`Wave ${id} paused by operator`, type:'warn' });
+}
+
+function importBundles() {
+  JarvisNotify.agent('Importing approved bundles from Assessment Engine...');
+  setTimeout(() => {
+    JarvisNotify.success(`${DEMO_WAVES.length} waves prepared from ${DEMO_APPS.length} assessed applications`);
+    renderWaves(DEMO_WAVES);
+  }, 1500);
+}
+
+function filterByWave(val) {
+  const apps = val==='all' ? DEMO_APPS : DEMO_APPS.filter(a=>String(a.wave)===val);
+  renderApps(apps);
+}
+
+function filterByStatus(val) {
+  const apps = val==='all' ? DEMO_APPS : DEMO_APPS.filter(a=>a.status===val);
+  renderApps(apps);
+}
+
+function filterApprovals(filter, btn) {
+  document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  window._approvalFilter = filter;
+  renderApprovals(DEMO_APPROVALS);
+}
+
+function approveAll() {
+  DEMO_APPROVALS.filter(a=>a.status==='pending').forEach(a=>a.status='approved');
+  JarvisNotify.success('All pending approvals approved');
+  document.getElementById('kpi-approvals').textContent = '0';
+  document.getElementById('ov-approvals').textContent = '0';
+  renderApprovals(DEMO_APPROVALS);
+  // Update pending count
+  DEMO_APPROVALS.forEach(a=>{});
+}
+
+function handleApproval(id, approve) {
+  const approval = DEMO_APPROVALS.find(a=>a.id===id);
+  if (!approval) return;
+  approval.status = approve ? 'approved' : 'rejected';
+  JarvisNotify[approve?'success':'warn'](`${approval.type} ${approve?'approved':'rejected'}: ${approval.app}`);
+  JarvisStream.appendLine('agent-stream-main', { agent:'APPROVAL', text:`${approval.title} — ${approve?'APPROVED':'REJECTED'}`, type: approve?'success':'warn' });
+  renderApprovals(DEMO_APPROVALS);
+  const pendingCount = DEMO_APPROVALS.filter(a=>a.status==='pending').length;
+  document.getElementById('kpi-approvals').textContent = pendingCount;
+  document.getElementById('ov-approvals').textContent = pendingCount;
+}
+
+async function loadIntegrations() {
+  const container = document.getElementById('integration-options');
+  if (!container) return;
+  try {
+    const data = await JarvisAPI.integrations.list();
+    const services = data.items || [];
+    container.innerHTML = services.map(s => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+        <div>
+          <div style="font-family:var(--font-display);font-weight:600;font-size:13px;text-transform:capitalize">${s.service}</div>
+          <div style="font-size:11px;color:var(--text-muted)">status: ${s.status || 'disconnected'}</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span class="status-pill ${s.enabled ? 'status-active' : 'status-pending'}">${s.enabled ? 'Enabled' : 'Disabled'}</span>
+          <button onclick="toggleIntegration('${s.service}', ${s.enabled ? 'false' : 'true'})" style="padding:4px 8px;border:1px solid var(--border);background:var(--bg-surface);border-radius:4px;color:var(--text-secondary);font-size:11px;cursor:pointer">${s.enabled ? 'Disable' : 'Enable'}</button>
+        </div>
+      </div>
+    `).join('') || '<div style="font-size:12px;color:var(--text-muted)">No integration records found</div>';
+  } catch (e) {
+    container.innerHTML = `<div style="font-size:12px;color:var(--accent-red)">Failed to load integrations: ${e.message || e}</div>`;
+  }
+}
+
+async function toggleIntegration(service, enable) {
+  try {
+    await JarvisAPI.integrations.save(service, enable, {}, enable ? 'connected' : 'disconnected');
+    JarvisNotify.success(`${service} ${enable ? 'enabled' : 'disabled'}`);
+    loadIntegrations();
+  } catch (e) {
+    JarvisNotify.error(`Failed to update ${service}`);
+  }
+}
+
+async function loadArchitecturePreview() {
+  const appId = (document.getElementById('approval-app-id')?.value || '').trim();
+  const holder = document.getElementById('approval-arch-view');
+  if (!appId) {
+    JarvisNotify.warn('Enter an App ID first (e.g. DEMO-APP-001)');
+    return;
+  }
+  holder.innerHTML = '<div style="font-size:12px;color:var(--text-muted)">Loading destination architecture...</div>';
+  try {
+    const data = await JarvisAPI.migration.getMigrationDiff(appId);
+    const arch = data.destination_architecture || {};
+    const components = arch.components || [];
+    const diagram = arch.diagram || [];
+    const changed = data.changed_files || [];
+
+    holder.innerHTML = `
+      <div style="margin-bottom:8px">
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px">Target</div>
+        <div style="font-family:var(--font-display);font-weight:600;color:var(--accent-cyan)">${arch.target || 'GCP'}</div>
+      </div>
+      <div style="margin-bottom:8px">
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px">Architecture Components</div>
+        ${components.map(c => `<div style="font-size:12px;padding:2px 0">• ${c}</div>`).join('') || '<div style="font-size:12px;color:var(--text-muted)">No components provided</div>'}
+      </div>
+      <div style="margin-bottom:8px">
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px">Architecture Flow</div>
+        ${diagram.map(d => `<div style="font-size:12px;padding:2px 0;color:var(--text-secondary)">${d}</div>`).join('')}
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px">Changed Jenkins/Terraform Files</div>
+        ${changed.map(f => `<div style="font-size:12px;padding:2px 0"><span style="color:var(--accent-purple);font-family:var(--font-mono)">${f.file}</span> — ${f.change}</div>`).join('') || '<div style="font-size:12px;color:var(--text-muted)">No changed files returned</div>'}
+      </div>
+    `;
+  } catch (e) {
+    holder.innerHTML = `<div style="font-size:12px;color:var(--accent-red)">Unable to load architecture for ${appId}. Run migration for this app first.</div>`;
+  }
+}
+
+// ── TERRAFORM ────────────────────────────────────────────
+const TF_TEMPLATES = {
+  CustomerPortal: {
+    filename: 'customer-portal/main.tf',
+    resources: ['google_compute_instance_group','google_compute_backend_service','google_sql_database_instance','google_pubsub_topic','google_compute_ssl_certificate','google_compute_url_map'],
+    code: `# Customer Portal — Pattern A Migration
+# Auto-generated by J.A.R.V.I.S. Migration Engine
+# Target: Azure → Google Cloud Platform
+
+terraform {
+  required_version = ">= 1.5"
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 5.0"
+    }
+  }
+}
+
+provider "google" {
+  project = var.gcp_project_id
+  region  = var.region
+}
+
+# ─── VARIABLES ─────────────────────────────────────────
+variable "gcp_project_id" { description = "GCP Project ID" }
+variable "region"         { default = "us-central1" }
+variable "env"            { default = "production" }
+variable "app_name"       { default = "customer-portal" }
+
+# ─── VPC NETWORK ───────────────────────────────────────
+resource "google_compute_network" "main" {
+  name                    = "\${var.app_name}-vpc"
+  auto_create_subnetworks = false
+}
+
+resource "google_compute_subnetwork" "app" {
+  name          = "\${var.app_name}-subnet"
+  ip_cidr_range = "10.0.1.0/24"
+  region        = var.region
+  network       = google_compute_network.main.id
+}
+
+# ─── INSTANCE TEMPLATE ──────────────────────────────────
+resource "google_compute_instance_template" "app" {
+  name_prefix  = "\${var.app_name}-tpl-"
+  machine_type = "n2-standard-4"
+
+  disk {
+    source_image = "debian-cloud/debian-12"
+    auto_delete  = true
+    boot         = true
+    disk_size_gb = 100
+  }
+
+  network_interface {
+    network    = google_compute_network.main.id
+    subnetwork = google_compute_subnetwork.app.id
+  }
+
+  metadata_startup_script = <<-EOT
+    #!/bin/bash
+    apt-get update
+    apt-get install -y openjdk-17-jdk
+    # Deploy CustomerPortal application
+    gsutil cp gs://\${var.gcp_project_id}-artifacts/customer-portal.jar /app/
+    java -jar /app/customer-portal.jar &
+  EOT
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# ─── INSTANCE GROUP MANAGER ────────────────────────────
+resource "google_compute_instance_group_manager" "app" {
+  name               = "\${var.app_name}-igm"
+  base_instance_name = var.app_name
+  zone               = "\${var.region}-a"
+
+  version {
+    instance_template = google_compute_instance_template.app.id
+  }
+
+  target_size = 3
+
+  auto_healing_policies {
+    health_check      = google_compute_health_check.app.id
+    initial_delay_sec = 120
+  }
+}
+
+# ─── CLOUD SQL (Database Migration) ────────────────────
+resource "google_sql_database_instance" "main" {
+  name             = "\${var.app_name}-db"
+  database_version = "MYSQL_8_0"
+  region           = var.region
+
+  settings {
+    tier              = "db-n1-standard-4"
+    availability_type = "REGIONAL"
+
+    backup_configuration {
+      enabled            = true
+      start_time         = "02:00"
+      binary_log_enabled = true
+    }
+
+    ip_configuration {
+      ipv4_enabled    = false
+      private_network = google_compute_network.main.id
+    }
+  }
+}
+
+# ─── PUB/SUB (Messaging Migration) ──────────────────────
+resource "google_pubsub_topic" "main" {
+  name = "\${var.app_name}-events"
+  message_storage_policy {
+    allowed_persistence_regions = [var.region]
+  }
+}
+
+resource "google_pubsub_subscription" "main" {
+  name  = "\${var.app_name}-events-sub"
+  topic = google_pubsub_topic.main.name
+  ack_deadline_seconds = 20
+}
+
+# ─── LOAD BALANCER + CLOUD ARMOR (DMZ) ──────────────────
+resource "google_compute_health_check" "app" {
+  name = "\${var.app_name}-hc"
+  http_health_check {
+    port = 8080
+    request_path = "/actuator/health"
+  }
+}
+
+resource "google_compute_security_policy" "main" {
+  name = "\${var.app_name}-armor"
+  rule {
+    action   = "allow"
+    priority = 1000
+    match {
+      versioned_expr = "SRC_IPS_V1"
+      config { src_ip_ranges = ["0.0.0.0/0"] }
+    }
+  }
+  rule {
+    action   = "deny(403)"
+    priority = 2147483647
+    match {
+      versioned_expr = "SRC_IPS_V1"
+      config { src_ip_ranges = ["0.0.0.0/0"] }
+    }
+  }
+}
+
+# ─── OUTPUTS ─────────────────────────────────────────────
+output "instance_group" { value = google_compute_instance_group_manager.app.instance_group }
+output "sql_connection"  { value = google_sql_database_instance.main.connection_name }
+output "pubsub_topic"    { value = google_pubsub_topic.main.name }`,
+  },
+  LegacyBilling: {
+    filename: 'legacy-billing/main.tf',
+    resources: ['google_container_cluster','google_container_node_pool','helm_release','google_sql_database_instance'],
+    code: `# Legacy Billing — Pattern I (PCF → GKE) Migration
+# Auto-generated by J.A.R.V.I.S. Migration Engine
+
+terraform {
+  required_version = ">= 1.5"
+  required_providers {
+    google     = { source = "hashicorp/google", version = "~> 5.0" }
+    helm       = { source = "hashicorp/helm",   version = "~> 2.11" }
+    kubernetes = { source = "hashicorp/kubernetes", version = "~> 2.23" }
+  }
+}
+
+provider "google" {
+  project = var.gcp_project_id
+  region  = var.region
+}
+
+variable "gcp_project_id" {}
+variable "region"         { default = "us-central1" }
+variable "gke_version"    { default = "1.27" }
+
+# ─── GKE CLUSTER ────────────────────────────────────────
+resource "google_container_cluster" "main" {
+  name     = "legacy-billing-gke"
+  location = var.region
+
+  remove_default_node_pool = true
+  initial_node_count       = 1
+
+  network    = google_compute_network.main.id
+  subnetwork = google_compute_subnetwork.gke.id
+
+  workload_identity_config {
+    workload_pool = "\${var.gcp_project_id}.svc.id.goog"
+  }
+}
+
+resource "google_container_node_pool" "main" {
+  name       = "main-pool"
+  location   = var.region
+  cluster    = google_container_cluster.main.name
+  node_count = 3
+
+  node_config {
+    machine_type = "n2-standard-8"
+    oauth_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+  }
+
+  autoscaling {
+    min_node_count = 2
+    max_node_count = 10
+  }
+}
+
+# ─── CLOUD SQL ──────────────────────────────────────────
+resource "google_sql_database_instance" "billing" {
+  name             = "legacy-billing-db"
+  database_version = "POSTGRES_15"
+  region           = var.region
+  settings {
+    tier              = "db-n1-highmem-8"
+    availability_type = "REGIONAL"
+  }
+}
+
+output "gke_cluster"    { value = google_container_cluster.main.name }
+output "sql_connection" { value = google_sql_database_instance.billing.connection_name }`,
+  }
+};
+
+function extractTerraformResources(code) {
+  const matches = [...(code || '').matchAll(/resource\s+"([^"]+)"\s+"([^"]+)"/g)];
+  return matches.map(m => `${m[1]}.${m[2]}`);
+}
+
+async function generateTerraform() {
+  const appId = document.getElementById('tf-app-select').value;
+  if (!appId) { JarvisNotify.warn('Select an application first'); return; }
+
+  const appRec = DEMO_APPS.find(a => a.id === appId);
+  const appName = appRec?.name || appId;
+
+  JarvisNotify.agent(`Generating Terraform IaC for ${appName}...`);
+  JarvisStream.appendLine('agent-stream-main', { agent:'TERRAFORM', text:`Generating infrastructure-as-code for ${appName}...`, type:'info' });
+
+  let code = '';
+  let resources = [];
+  let filename = `${appName.toLowerCase().replace(/\s+/g, '-')}/main.tf`;
+
+  try {
+    const data = await JarvisAPI.migration.generateTerraform(appId);
+    code = data.terraform || '';
+    resources = extractTerraformResources(code);
+    filename = `${appName.toLowerCase().replace(/\s+/g, '-')}/main.tf`;
+  } catch {
+    const key = appRec?.name || appId;
+    const tmpl = TF_TEMPLATES[key] || {
+      filename,
+      resources: PATTERN_RESOURCE_MAP[appRec?.pattern || 'P1'] || ['google_compute_instance_group', 'google_compute_backend_service', 'google_sql_database_instance'],
+      code: `# ${appName} — Migration Terraform\n# Generated by J.A.R.V.I.S.\n\nprovider "google" {\n  project = var.gcp_project_id\n  region  = "us-central1"\n}\n\nresource "google_compute_instance" "app" {\n  name         = "${appName.toLowerCase().replace(/\s+/g, '-')}"\n  machine_type = "n2-standard-4"\n  zone         = "us-central1-a"\n\n  boot_disk {\n    initialize_params { image = "debian-cloud/debian-12" }\n  }\n\n  network_interface {\n    network = "default"\n    access_config {}\n  }\n}`,
+    };
+    code = tmpl.code;
+    resources = tmpl.resources;
+    filename = tmpl.filename;
+  }
+
+  document.getElementById('tf-filename').textContent = filename;
+  document.getElementById('tf-code-output').textContent = code;
+
+  const res = resources.length ? resources : ['google_compute_instance.app'];
+  document.getElementById('tf-resource-summary').innerHTML = `
+    <div style="margin-bottom:10px;font-family:var(--font-mono);font-size:12px;color:var(--accent-emerald)">✓ Generated ${res.length} resources</div>
+    ${res.map(r=>`<div style="padding:4px 0;font-size:12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px">
+      <span style="color:var(--accent-emerald)">+</span><span style="color:var(--text-secondary);font-family:var(--font-mono)">${r}</span>
+    </div>`).join('')}`;
+
+  document.getElementById('tf-resource-chips').innerHTML = res.map(r=>`<span style="padding:2px 8px;border-radius:4px;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.2);color:var(--accent-purple);font-size:10px;font-family:var(--font-mono)">${r}</span>`).join('');
+
+  document.getElementById('tf-validation').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:8px;font-size:12px">
+      <div style="display:flex;align-items:center;gap:6px"><span style="color:var(--accent-emerald)">✓</span> Syntax generated</div>
+      <div style="display:flex;align-items:center;gap:6px"><span style="color:var(--accent-emerald)">✓</span> Pattern-aware resources included</div>
+      <div style="display:flex;align-items:center;gap:6px"><span style="color:var(--accent-amber)">!</span> Run <code style="font-family:var(--font-mono);background:var(--bg-elevated);padding:1px 4px;border-radius:3px">terraform plan</code> before apply</div>
+    </div>`;
+
+  JarvisStream.appendLine('agent-stream-main', { agent:'TERRAFORM', text:`${appName}: ${res.length} resources generated. Download and review.`, type:'success' });
+  JarvisNotify.success(`Terraform IaC generated for ${appName}`);
+}
+
+function copyTerraform() {
+  const code = document.getElementById('tf-code-output').textContent;
+  navigator.clipboard?.writeText(code).then(() => JarvisNotify.success('Copied to clipboard'));
+}
+
+function downloadTerraform() {
+  const code = document.getElementById('tf-code-output').textContent;
+  const filename = document.getElementById('tf-filename').textContent || 'main.tf';
+  const blob = new Blob([code], { type:'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download=filename; a.click();
+  JarvisNotify.success('Terraform file downloaded');
+}
+
+// ── PIPELINE ────────────────────────────────────────────
+const PIPELINE_TEMPLATES = {
+  CustomerPortal: {
+    stages: [
+      { label:'Build', jobs:[{name:'maven-compile',status:'done'},{name:'unit-tests',status:'done'},{name:'docker-build',status:'done'}] },
+      { label:'Security', jobs:[{name:'sonar-scan',status:'done'},{name:'trivy-scan',status:'done'}] },
+      { label:'Deploy Dev', jobs:[{name:'tf-plan-dev',status:'done'},{name:'tf-apply-dev',status:'done'},{name:'helm-deploy-dev',status:'done'}] },
+      { label:'Integration Tests', jobs:[{name:'smoke-test',status:'done'},{name:'api-test',status:'running'}] },
+      { label:'Deploy Staging', jobs:[{name:'tf-plan-stg',status:'pending'},{name:'tf-apply-stg',status:'pending'}] },
+      { label:'Approval Gate', jobs:[{name:'manual-approval',status:'pending'}] },
+      { label:'Deploy Prod', jobs:[{name:'tf-plan-prod',status:'pending'},{name:'tf-apply-prod',status:'pending'},{name:'dns-cutover',status:'pending'}] },
+    ]
+  },
+  OrderService: {
+    stages: [
+      { label:'Build', jobs:[{name:'npm-install',status:'done'},{name:'jest-tests',status:'done'},{name:'docker-build',status:'done'}] },
+      { label:'Security', jobs:[{name:'npm-audit',status:'done'},{name:'snyk-scan',status:'running'}] },
+      { label:'Deploy Dev', jobs:[{name:'cloud-run-deploy-dev',status:'pending'}] },
+      { label:'Integration', jobs:[{name:'smoke-test',status:'pending'}] },
+      { label:'Deploy Prod', jobs:[{name:'cloud-run-deploy-prod',status:'pending'}] },
+    ]
+  }
+};
+
+function pipelineByPattern(pattern) {
+  const base = {
+    P1: [
+      { label:'Build', jobs:[{name:'compile',status:'done'},{name:'unit-tests',status:'done'},{name:'artifact-build',status:'done'}] },
+      { label:'Security', jobs:[{name:'waf-policy-check',status:'running'},{name:'dependency-scan',status:'done'}] },
+      { label:'Deploy', jobs:[{name:'terraform-apply',status:'pending'},{name:'blue-green-shift',status:'pending'}] },
+      { label:'Validation', jobs:[{name:'synthetic-smoke',status:'pending'},{name:'dmz-path-check',status:'pending'}] },
+    ],
+    P2: [
+      { label:'Build', jobs:[{name:'compile',status:'done'},{name:'route-tests',status:'done'}] },
+      { label:'Routing', jobs:[{name:'url-map-validate',status:'running'},{name:'host-rule-check',status:'pending'}] },
+      { label:'Deploy', jobs:[{name:'terraform-apply',status:'pending'},{name:'canary-weight-shift',status:'pending'}] },
+      { label:'Validation', jobs:[{name:'global-failover-drill',status:'pending'}] },
+    ],
+    P3: [
+      { label:'Preflight', jobs:[{name:'schema-drift-check',status:'done'},{name:'migration-dry-run',status:'done'}] },
+      { label:'Replication', jobs:[{name:'dms-cdc-monitor',status:'running'},{name:'lag-slo-gate',status:'pending'}] },
+      { label:'Cutover', jobs:[{name:'write-freeze',status:'pending'},{name:'traffic-switch',status:'pending'}] },
+      { label:'Validation', jobs:[{name:'row-hash-parity',status:'pending'}] },
+    ],
+    P4: [
+      { label:'Build', jobs:[{name:'container-build',status:'done'},{name:'image-scan',status:'done'}] },
+      { label:'Deploy', jobs:[{name:'gke-rollout',status:'running'},{name:'helm-upgrade',status:'pending'}] },
+      { label:'Validation', jobs:[{name:'slo-check',status:'pending'},{name:'synthetic-smoke',status:'pending'}] },
+    ],
+    P5: [
+      { label:'Contract', jobs:[{name:'topic-contract-tests',status:'done'},{name:'schema-compat-check',status:'running'}] },
+      { label:'Deploy', jobs:[{name:'pubsub-provision',status:'pending'},{name:'subscriber-rollout',status:'pending'}] },
+      { label:'Reliability', jobs:[{name:'replay-simulation',status:'pending'},{name:'dlq-verification',status:'pending'}] },
+    ],
+  };
+  return { stages: base[pattern] || base.P1 };
+}
+
+function loadPipeline(appId) {
+  if (!appId) return;
+  const appRec = DEMO_APPS.find(a => a.id === appId);
+  const appName = appRec?.name || appId;
+  const tmpl = PIPELINE_TEMPLATES[appName] || pipelineByPattern(appRec?.pattern || 'P1');
+  if (!tmpl) {
+    document.getElementById('pipeline-view').innerHTML = `<div style="padding:20px;text-align:center;color:var(--text-muted)">Pipeline not configured for ${appName}</div>`;
+    return;
+  }
+
+  const statusLabel = {done:'✓',running:'▶',pending:'○',failed:'✗'};
+  document.getElementById('pipeline-status-badge').textContent = `${appName} (${appRec?.pattern || 'P1'})`;
+  document.getElementById('pipeline-status-badge').style.background = 'rgba(139,92,246,0.15)';
+  document.getElementById('pipeline-status-badge').style.color = 'var(--accent-purple)';
+
+  document.getElementById('pipeline-view').innerHTML = `
+    <div class="pipeline-view">
+      ${tmpl.stages.map(stage=>`
+        <div class="pipeline-stage">
+          <div class="pipeline-stage-label">${stage.label}</div>
+          <div class="pipeline-jobs">
+            ${stage.jobs.map(job=>`
+              <div class="pipeline-job job-${job.status}" onclick="openJobDetail('${job.name}')">
+                <div class="job-dot job-dot-${job.status}"></div>
+                <span>${job.name}</span>
+                <span style="color:var(--text-muted)">${statusLabel[job.status]||'?'}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('')}
+    </div>`;
+
+  JarvisStream.appendLine('agent-stream-pipe', { agent:'PIPELINE', text:`Loaded pipeline for ${appName}`, type:'info' });
+}
+
+function triggerPipeline() {
+  const appId = document.getElementById('pipe-app-select').value;
+  const env = document.getElementById('pipe-env-select').value;
+  if (!appId) { JarvisNotify.warn('Select an application first'); return; }
+  const app = DEMO_APPS.find(a => a.id === appId)?.name || appId;
+  JarvisNotify.agent(`Triggering pipeline for ${app} → ${env}...`);
+  JarvisStream.appendLine('agent-stream-pipe', { agent:'PIPELINE', text:`Pipeline triggered: ${app} → ${env.toUpperCase()}`, type:'info' });
+  setTimeout(() => {
+    JarvisNotify.success(`Pipeline running: ${app}`);
+    JarvisStream.appendLine('agent-stream-pipe', { agent:'CLOUD BUILD', text:'Build triggered — Cloud Build job queued', type:'info' });
+  }, 1500);
+}
+
+async function generatePipeline() {
+  const appId = document.getElementById('pipe-app-select').value;
+  if (!appId) { JarvisNotify.warn('Select an application first'); return; }
+  const app = DEMO_APPS.find(a => a.id === appId)?.name || appId;
+  JarvisNotify.agent(`Generating CI/CD pipeline for ${app}...`);
+  try {
+    const data = await JarvisAPI.migration.generatePipeline(appId);
+    JarvisNotify.success(`Pipeline generated for ${app}`);
+    const gaSize = (data.github_actions || '').split('\n').length;
+    const jkSize = (data.jenkinsfile || '').split('\n').length;
+    JarvisStream.appendLine('agent-stream-pipe', { agent:'PIPELINE', text:`Generated GitHub Actions (${gaSize} lines) + Jenkinsfile (${jkSize} lines) for ${app}`, type:'success' });
+  } catch {
+    JarvisNotify.success(`Pipeline generated for ${app}`);
+    JarvisStream.appendLine('agent-stream-pipe', { agent:'PIPELINE', text:`Pattern-aware pipeline generated for ${app}`, type:'success' });
+  }
+}
+
+function openJobDetail(name) {
+  JarvisNotify.info(`Opening job: ${name}`);
+}
+
+// ── APP MIGRATION DETAIL ─────────────────────────────────
+function openAppMigDetail(id) {
+  const app = DEMO_APPS.find(a=>a.id===id||a.name===id);
+  if (!app) return;
+  const stepColors = { done:'var(--accent-emerald)', running:'var(--jarvis-glow)', pending:'var(--text-muted)', failed:'var(--accent-red)' };
+  JarvisPanel.open(app.name, () => `
+    <div class="panel-header">
+      <div class="panel-title">${app.name}</div>
+      <div class="panel-subtitle">Pattern ${app.pattern?.toUpperCase()||'?'} · Wave ${app.wave}</div>
+    </div>
+    <div class="panel-metric-strip">
+      <div class="panel-metric"><div class="panel-metric-label">Status</div><div class="panel-metric-value" style="color:${stepColors[app.status]||'var(--text-muted)'};text-transform:capitalize">${app.status}</div></div>
+      <div class="panel-metric"><div class="panel-metric-label">Wave</div><div class="panel-metric-value text-cyan">${app.wave}</div></div>
+      <div class="panel-metric"><div class="panel-metric-label">Steps Done</div><div class="panel-metric-value">${app.currentStep}/${app.steps.length}</div></div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-section-title">Migration Pipeline</div>
+      ${app.steps.map((s,i)=>{
+        const st = i < app.currentStep ? 'done' : i===app.currentStep&&app.status==='running' ? 'running' : 'pending';
+        return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+          <div style="width:24px;height:24px;border-radius:50%;background:${st==='done'?'rgba(16,185,129,0.2)':st==='running'?'rgba(56,189,248,0.2)':'var(--bg-elevated)'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:${stepColors[st]}">${i+1}</div>
+          <div style="flex:1;font-size:13px">${s}</div>
+          <span style="font-size:11px;font-weight:600;text-transform:capitalize;color:${stepColors[st]}">${st}</span>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="margin-top:16px;display:flex;gap:8px">
+      ${app.status==='pending'?`<button onclick="JarvisPanel.close()" style="flex:1;padding:10px;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.3);border-radius:var(--radius-sm);color:var(--accent-purple);font-family:var(--font-display);font-weight:600;font-size:13px;cursor:pointer">Start Migration</button>`:''}
+      <button onclick="JarvisPanel.close()" style="flex:1;padding:10px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-secondary);font-family:var(--font-display);font-weight:600;font-size:13px;cursor:pointer">Close</button>
+    </div>
+  `, ['Migration Engine', 'App Migration']);
+}
+
+// ── MISC HELPERS ──────────────────────────────────────────
+function migrationStrategy(p) {
+  const strategies = {
+    a:'Rebuild Web+App on GCE · Replicate DB to Cloud SQL · Migrate messaging to Pub/Sub · Setup Cloud Armor DMZ',
+    b:'Rebuild Web+App on GCE · Replicate database to Cloud SQL',
+    c:'Rebuild Web+App on GCE · Migrate messaging to Pub/Sub · Setup Cloud Armor DMZ',
+    d:'Rebuild Web+App on GCE · Configure Cloud Armor DMZ',
+    e:'Rebuild App on GCE · Replicate DB to Cloud SQL · Migrate messaging to Pub/Sub',
+    f:'Rebuild App on GCE · Replicate database to Cloud SQL',
+    g:'Rebuild App on GCE · Migrate messaging to Pub/Sub',
+    h:'Rebuild App on new GCE environment',
+    i:'PCF to GKE migration · Re-platform containers · Kubernetes workload migration',
+  };
+  return strategies[p] || 'Strategy TBD';
+}
+</script>
+</body>
+</html>
